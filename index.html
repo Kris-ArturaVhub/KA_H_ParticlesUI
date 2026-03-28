@@ -3,46 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KAvnhub V7.1 - Mirror Fixed 🌌</title>
+    <title>KAvnhub V8 - Multi-Radar Matrix 🌌</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-        /* Tầng 1: UI Detector - Hiển thị camera */
         #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; overflow: hidden; }
-        /* Tầng 2: Ma trận hạt */
         #bottom-panel { height: 55%; position: relative; background: radial-gradient(circle, #111 0%, #000 100%); }
         canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        #canvas-bottom { z-index: 1; }
-        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Lật ngược video */
+        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 9px; z-index: 5; text-shadow: 0 0 5px #0f0; }
-        #status-bar { position: absolute; bottom: 5px; width: 100%; text-align: center; color: #fff; font-size: 11px; font-weight: bold; z-index: 5; text-shadow: 0 0 10px #ff69b4; }
+        #status-bar { position: absolute; bottom: 5px; width: 100%; text-align: center; color: #fff; font-size: 11px; font-weight: bold; z-index: 5; }
     </style>
 </head>
 <body>
     <div id="top-panel">
-        <div class="hud">>> SENSOR: ACTIVE<br>>> FACE/HAND RADAR: ON (REALTIME)</div>
+        <div class="hud">>> MULTI-RADAR SYSTEM: V8.0<br>>> TRACKING 6-POINT HAND GRID</div>
         <video id="input_video"></video>
         <canvas id="canvas-top"></canvas>
     </div>
     <div id="bottom-panel">
-        <div id="status-bar">SYSTEM INITIALIZING...</div>
+        <div id="status-bar">WAITING FOR SENSORS...</div>
         <canvas id="canvas-bottom"></canvas>
     </div>
 
     <script>
         const video = document.getElementById('input_video');
-        const cTop = document.getElementById('canvas-top');
-        const ctxTop = cTop.getContext('2d');
-        const cBottom = document.getElementById('canvas-bottom');
-        const ctxBottom = cBottom.getContext('2d');
+        const cTop = document.getElementById('canvas-top'); const ctxTop = cTop.getContext('2d');
+        const cBottom = document.getElementById('canvas-bottom'); const ctxBottom = cBottom.getContext('2d');
         const status = document.getElementById('status-bar');
 
         const PARTICLE_COUNT = 1000;
         const particles = [];
         let currentMode = 'free';
         let particleColor = "white";
+        let handCenter = {x: 0, y: 0};
 
         function resize() {
             cTop.width = window.innerWidth; cTop.height = window.innerHeight * 0.45;
@@ -50,54 +46,58 @@
             initPatterns();
         }
 
-        // --- TẠO HÌNH MẪU ---
         let heartPoints = [], textPoints = [];
         function initPatterns() {
             const cx = cBottom.width / 2, cy = cBottom.height / 2;
-            
-            // 1. ❤️ CÂN ĐỐI & NHỎ GỌN (✌️)
             heartPoints = [];
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const t = (i / PARTICLE_COUNT) * Math.PI * 2;
-                const r = 8; // Chỉnh r cho ❤️ cân đối
+                const r = 8; // Đã chỉnh nhỏ xuống ~60% so với bản cũ
                 heartPoints.push({
                     x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
-                    y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 30 // Hạ thấp ❤️ cho cân đối
+                    y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 20
                 });
             }
-            // 2. Chữ KRIS (✊)
             textPoints = [];
-            ctxBottom.font = "bold 100px Arial"; ctxBottom.textAlign = "center";
-            ctxBottom.fillText("(⁠◍⁠•⁠ᴗ⁠•⁠◍⁠)⁠✧⁠*⁠。", cx, cy + 30);
+            ctxBottom.font = "bold 80px Arial"; ctxBottom.textAlign = "center";
+            ctxBottom.fillText("KRIS", cx, cy + 30);
             const data = ctxBottom.getImageData(0,0,cBottom.width,cBottom.height).data;
-            const pixels = [];
-            for(let y=0; y<cBottom.height; y+=5) {
-                for(let x=0; x<cBottom.width; x+=5) {
-                    if(data[(y*cBottom.width+x)*4+3] > 128) pixels.push({x,y});
+            for(let y=0; y<cBottom.height; y+=6) { // Tăng bước nhảy để quét nhanh hơn
+                for(let x=0; x<cBottom.width; x+=6) {
+                    if(data[(y*cBottom.width+x)*4+3] > 128) textPoints.push({x,y});
                 }
             }
             ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
-            for(let i=0; i<PARTICLE_COUNT; i++) textPoints.push(pixels[i%pixels.length]);
         }
 
         class Particle {
-            constructor() { this.reset(); }
-            reset() {
-                this.x = Math.random()*cBottom.width; this.y = Math.random()*cBottom.height;
-                this.vx = (Math.random()-0.5)*10; this.vy = (Math.random()-0.5)*10;
-                this.size = Math.random()*1.5+0.5;
+            constructor() { 
+                this.x = Math.random()*window.innerWidth; this.y = Math.random()*window.innerHeight;
+                this.vx = 0; this.vy = 0; this.size = Math.random()*2+0.5;
             }
             update(target) {
-                if(currentMode === 'pattern' || currentMode === 'text') {
-                    this.x += (target.x - this.x)*0.25; this.y += (target.y - this.y)*0.25;
-                } else if(currentMode === 'rain') {
-                    this.vy += 0.8; this.y += this.vy;
-                    if(this.y > cBottom.height) { this.y = -10; this.vy = Math.random()*5+5; }
-                } else if(currentMode === 'freeze') { return; }
-                else {
+                if(currentMode === 'blackhole') {
+                    // Hiệu ứng hố đen: hút vào handCenter
+                    let dx = handCenter.x - this.x; let dy = handCenter.y - this.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let force = 0.5;
+                    this.vx += (dx/dist) * force; this.vy += (dy/dist) * force;
+                    
+                    // Hiệu ứng va chạm (Anti-clumping)
+                    particles.forEach(p => {
+                        if(p === this) return;
+                        let pdx = p.x - this.x; let pdy = p.y - this.y;
+                        let pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+                        if(pdist < 10) { // Nếu quá gần nhau thì đẩy ra
+                            this.vx -= pdx * 0.02; this.vy -= pdy * 0.02;
+                        }
+                    });
+                    this.vx *= 0.95; this.vy *= 0.95;
                     this.x += this.vx; this.y += this.vy;
-                    this.vx *= 0.92; this.vy *= 0.92;
-                    if(Math.abs(this.vx) < 0.1) this.vx = (Math.random()-0.5)*1.5;
+                } else if(currentMode === 'pattern' || currentMode === 'text') {
+                    this.x += (target.x - this.x)*0.2; this.y += (target.y - this.y)*0.2;
+                } else {
+                    this.x += (Math.random()-0.5)*2; this.y += (Math.random()-0.5)*2;
                 }
             }
             draw() { ctxBottom.fillStyle = particleColor; ctxBottom.fillRect(this.x, this.y, this.size, this.size); }
@@ -105,93 +105,62 @@
 
         for(let i=0; i<PARTICLE_COUNT; i++) particles.push(new Particle());
 
-        // --- NHẬN DIỆN MẮT, MẶT, TAY ---
-        const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+        const faceMesh = new FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
         faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5});
-        
-        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6}); // Tăng confidence cho tay
+        const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+        hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6}); // Giảm modelComplexity để quét cực nhanh
 
         function onResults(faceRes, handRes) {
             ctxTop.clearRect(0,0,cTop.width,cTop.height);
             ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
 
-            // 1. Xử lý Mắt (Face Mesh) & Vẽ UI Camera
-            if(faceRes.multiFaceLandmarks && faceRes.multiFaceLandmarks[0]) {
+            if(faceRes.multiFaceLandmarks?.[0]) {
                 const lm = faceRes.multiFaceLandmarks[0];
-                // Tính độ mở mắt (EAR)
-                const EAR = (eyes) => {
-                    const p2_p6 = Math.sqrt(Math.pow(lm[eyes[1]].x - lm[eyes[5]].x, 2) + Math.pow(lm[eyes[1]].y - lm[eyes[5]].y, 2));
-                    const p3_p5 = Math.sqrt(Math.pow(lm[eyes[2]].x - lm[eyes[4]].x, 2) + Math.pow(lm[eyes[2]].y - lm[eyes[4]].y, 2));
-                    const p1_p4 = Math.sqrt(Math.pow(lm[eyes[0]].x - lm[eyes[3]].x, 2) + Math.pow(lm[eyes[0]].y - lm[eyes[3]].y, 2));
-                    return (p2_p6 + p3_p5) / (2.0 * p1_p4);
-                }
-                const leftEAR = EAR([33, 160, 158, 133, 153, 144]);
-                const rightEAR = EAR([362, 385, 387, 263, 373, 380]);
+                const EAR = (e) => (Math.abs(lm[e[1]].y-lm[e[5]].y) + Math.abs(lm[e[2]].y-lm[e[4]].y)) / (2*Math.abs(lm[e[0]].x-lm[e[3]].x));
+                // CHỈNH XUỐNG 0.12 theo ý anh
+                particleColor = (EAR([33,160,158,133,153,144]) > 0.12 && EAR([362,385,387,263,373,380]) > 0.12) ? "white" : "#ff00ff";
                 
-                // MỞ CẢ 2 MẮT (EAR > 0.22) -> TRẮNG, CÒN LẠI -> HỒNG
-                particleColor = (leftEAR > 0.12 && rightEAR > 0.12) ? "white" : "#ff00ff";
-                
-                // Vẽ ô phát hiện mặt UI bên trên (Tự điều chỉnh kích cỡ)
-                // Lật ngược tọa độ x để vẽ đúng vị trí sau khi video bị lật ngược
-                const faceBox = {
-                    xMin: 1 - Math.max(lm[362].x, lm[263].x), // Lật xMin
-                    yMin: lm[10].y,
-                    xMax: 1 - Math.min(lm[33].x, lm[133].x), // Lật xMax
-                    yMax: lm[152].y
-                };
-                ctxTop.strokeStyle = "#0f0"; ctxTop.lineWidth = 2;
-                ctxTop.strokeRect(faceBox.xMin*cTop.width - 20, faceBox.yMin*cTop.height - 20, (faceBox.xMax-faceBox.xMin)*cTop.width + 40, (faceBox.yMax-faceBox.yMin)*cTop.height + 40);
-                ctxTop.fillStyle = "#0f0"; ctxTop.font = "bold 10px monospace";
-                ctxTop.fillText("FACE DETECTED", faceBox.xMin*cTop.width - 20, faceBox.yMin*cTop.height - 25);
+                ctxTop.strokeStyle = "#0f0"; ctxTop.strokeRect((1-lm[1].x)*cTop.width-40, lm[1].y*cTop.height-50, 80, 100);
             }
 
-            // 2. Xử lý Tay (Hands) & Cử chỉ
-            if(handRes.multiHandLandmarks && handRes.multiHandLandmarks[0]) {
+            if(handRes.multiHandLandmarks?.[0]) {
                 const hm = handRes.multiHandLandmarks[0];
+                const getX = (i) => (1-hm[i].x)*cTop.width; const getY = (i) => hm[i].y*cTop.height;
+                
+                // VẼ 6 KHUNG (RADAR MODE)
+                ctxTop.lineWidth = 1; ctxTop.strokeStyle = "#00ffff";
+                [4, 8, 12, 16, 20].forEach(i => ctxTop.strokeRect(getX(i)-10, getY(i)-10, 20, 20)); // 5 khung ngón tay
+                ctxTop.strokeRect(getX(0)-30, getY(0)-30, 60, 60); // 1 khung lòng bàn tay
+
+                handCenter = {x: hm[9].x * cBottom.width, y: hm[9].y * cBottom.height};
+
                 const up = (i) => hm[i*4+4].y < hm[i*4+2].y;
                 const fingers = [up(0), up(1), up(2), up(3), up(4)];
-
-                if(fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'rain'; // ☝️
-                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern'; // ✌️ -> ❤️
-                else if(!fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'text'; // ✊ -> KRIS
-                else if(fingers[1] && fingers[2] && fingers[3]) currentMode = 'freeze'; // 🖐️
+                
+                // LOGIC CỬ CHỈ
+                if(fingers[1] && fingers[4] && !fingers[2] && !fingers[3]) currentMode = 'blackhole'; // 🤘
+                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern'; // ✌️
+                else if(!fingers[1] && !fingers[2]) currentMode = 'text'; // ✊
                 else currentMode = 'free';
-
-                // Vẽ ô phát hiện tay UI bên trên (Tự điều chỉnh kích cỡ)
-                // Lật ngược tọa độ x để vẽ đúng vị trí sau khi video bị lật ngược
-                const handBox = {
-                    xMin: 1 - hm[0].x, yMin: hm[0].y,
-                    xMax: 1 - hm[0].x, yMax: hm[0].y
-                };
-                hm.forEach(p => {
-                    const flippedX = 1 - p.x;
-                    handBox.xMin = Math.min(handBox.xMin, flippedX); handBox.yMin = Math.min(handBox.yMin, p.y);
-                    handBox.xMax = Math.max(handBox.xMax, flippedX); handBox.yMax = Math.max(handBox.yMax, p.y);
-                });
-                ctxTop.strokeStyle = "#00ffff"; ctxTop.lineWidth = 2;
-                ctxTop.strokeRect(handBox.xMin*cTop.width - 10, handBox.yMin*cTop.height - 10, (handBox.xMax-handBox.xMin)*cTop.width + 20, (handBox.yMax-handBox.yMin)*cTop.height + 20);
             } else { currentMode = 'free'; }
 
-            // 3. Cập nhật Status Bar & Vẽ Hạt
-            status.innerText = `MODE: ${currentMode.toUpperCase()} | EYE: ${particleColor === 'white' ? 'OPEN' : 'BLINK'}`;
+            status.innerText = `SYSTEM: ACTIVE | MODE: ${currentMode.toUpperCase()} | RADAR: 6-AXIS`;
             particles.forEach((p, i) => {
-                p.update(currentMode === 'text' ? textPoints[i] : heartPoints[i]);
+                p.update(currentMode === 'text' ? textPoints[i % textPoints.length] : heartPoints[i]);
                 p.draw();
             });
         }
 
-        // --- ĐỒNG BỘ CAMERA ---
         const camera = new Camera(video, {
             onFrame: async () => {
-                const fRes = await new Promise(r => faceMesh.onResults(res => r(res)) || faceMesh.send({image:video}));
-                const hRes = await new Promise(r => hands.onResults(res => r(res)) || hands.send({image:video}));
-                onResults(fRes, hRes);
-            }, width: 1280, height: 720
+                await faceMesh.send({image: video});
+                await hands.send({image: video});
+            }, width: 640, height: 480
         });
         camera.start();
-        window.addEventListener('resize', resize);
-        resize();
+        faceMesh.onResults(res => onResults(res, lastHandRes));
+        let lastHandRes = {}; hands.onResults(res => lastHandRes = res);
+        window.addEventListener('resize', resize); resize();
     </script>
 </body>
 </html>

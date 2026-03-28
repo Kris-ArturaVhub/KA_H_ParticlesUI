@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KAvnhub V8 - Multi-Radar Matrix 🌌</title>
+    <title>KAvnhub V8.1 - Fix Black Screen 🌌</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-        #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; overflow: hidden; }
-        #bottom-panel { height: 55%; position: relative; background: radial-gradient(circle, #111 0%, #000 100%); }
-        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 9px; z-index: 5; text-shadow: 0 0 5px #0f0; }
+        #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; background: #111; }
+        #bottom-panel { height: 55%; position: relative; background: #000; }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 2; }
+        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); position: absolute; z-index: 1; }
+        .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 9px; z-index: 5; text-shadow: 0 0 5px #0f0; pointer-events: none; }
         #status-bar { position: absolute; bottom: 5px; width: 100%; text-align: center; color: #fff; font-size: 11px; font-weight: bold; z-index: 5; }
     </style>
 </head>
 <body>
     <div id="top-panel">
-        <div class="hud">>> MULTI-RADAR SYSTEM: V8.0<br>>> TRACKING 6-POINT HAND GRID</div>
-        <video id="input_video"></video>
+        <div class="hud">>> SYSTEM V8.1: ONLINE<br>>> FIX: SYNC RENDER</div>
+        <video id="input_video" playsinline></video>
         <canvas id="canvas-top"></canvas>
     </div>
     <div id="bottom-panel">
-        <div id="status-bar">WAITING FOR SENSORS...</div>
+        <div id="status-bar">CAMERA INITIALIZING...</div>
         <canvas id="canvas-bottom"></canvas>
     </div>
 
@@ -34,11 +34,12 @@
         const cBottom = document.getElementById('canvas-bottom'); const ctxBottom = cBottom.getContext('2d');
         const status = document.getElementById('status-bar');
 
-        const PARTICLE_COUNT = 1000;
-        const particles = [];
+        let PARTICLE_COUNT = 1000;
+        let particles = [];
         let currentMode = 'free';
         let particleColor = "white";
         let handCenter = {x: 0, y: 0};
+        let lastFaceRes = null, lastHandRes = null;
 
         function resize() {
             cTop.width = window.innerWidth; cTop.height = window.innerHeight * 0.45;
@@ -52,17 +53,18 @@
             heartPoints = [];
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const t = (i / PARTICLE_COUNT) * Math.PI * 2;
-                const r = 8; // Đã chỉnh nhỏ xuống ~60% so với bản cũ
+                const r = 8; 
                 heartPoints.push({
                     x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
                     y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 20
                 });
             }
+            // Tạo chữ KRIS nhanh
             textPoints = [];
-            ctxBottom.font = "bold 80px Arial"; ctxBottom.textAlign = "center";
+            ctxBottom.fillStyle = "white"; ctxBottom.font = "bold 80px Arial"; ctxBottom.textAlign = "center";
             ctxBottom.fillText("KRIS", cx, cy + 30);
             const data = ctxBottom.getImageData(0,0,cBottom.width,cBottom.height).data;
-            for(let y=0; y<cBottom.height; y+=6) { // Tăng bước nhảy để quét nhanh hơn
+            for(let y=0; y<cBottom.height; y+=6) {
                 for(let x=0; x<cBottom.width; x+=6) {
                     if(data[(y*cBottom.width+x)*4+3] > 128) textPoints.push({x,y});
                 }
@@ -73,31 +75,20 @@
         class Particle {
             constructor() { 
                 this.x = Math.random()*window.innerWidth; this.y = Math.random()*window.innerHeight;
-                this.vx = 0; this.vy = 0; this.size = Math.random()*2+0.5;
+                this.vx = (Math.random()-0.5)*2; this.vy = (Math.random()-0.5)*2; this.size = Math.random()*2+0.5;
             }
             update(target) {
                 if(currentMode === 'blackhole') {
-                    // Hiệu ứng hố đen: hút vào handCenter
                     let dx = handCenter.x - this.x; let dy = handCenter.y - this.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy);
-                    let force = 0.5;
-                    this.vx += (dx/dist) * force; this.vy += (dy/dist) * force;
-                    
-                    // Hiệu ứng va chạm (Anti-clumping)
-                    particles.forEach(p => {
-                        if(p === this) return;
-                        let pdx = p.x - this.x; let pdy = p.y - this.y;
-                        let pdist = Math.sqrt(pdx*pdx + pdy*pdy);
-                        if(pdist < 10) { // Nếu quá gần nhau thì đẩy ra
-                            this.vx -= pdx * 0.02; this.vy -= pdy * 0.02;
-                        }
-                    });
-                    this.vx *= 0.95; this.vy *= 0.95;
-                    this.x += this.vx; this.y += this.vy;
-                } else if(currentMode === 'pattern' || currentMode === 'text') {
-                    this.x += (target.x - this.x)*0.2; this.y += (target.y - this.y)*0.2;
+                    let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    this.vx += (dx/dist) * 0.6; this.vy += (dy/dist) * 0.6;
+                    this.vx *= 0.92; this.vy *= 0.92;
+                } else if((currentMode === 'pattern' || currentMode === 'text') && target) {
+                    this.x += (target.x - this.x)*0.15; this.y += (target.y - this.y)*0.15;
                 } else {
-                    this.x += (Math.random()-0.5)*2; this.y += (Math.random()-0.5)*2;
+                    this.x += this.vx; this.y += this.vy;
+                    if(this.x<0 || this.x>cBottom.width) this.vx *= -1;
+                    if(this.y<0 || this.y>cBottom.height) this.vy *= -1;
                 }
             }
             draw() { ctxBottom.fillStyle = particleColor; ctxBottom.fillRect(this.x, this.y, this.size, this.size); }
@@ -107,48 +98,50 @@
 
         const faceMesh = new FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
         faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5});
-        const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-        hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6}); // Giảm modelComplexity để quét cực nhanh
+        faceMesh.onResults(res => lastFaceRes = res);
 
-        function onResults(faceRes, handRes) {
+        const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+        hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
+        hands.onResults(res => lastHandRes = res);
+
+        function drawLoop() {
             ctxTop.clearRect(0,0,cTop.width,cTop.height);
             ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
 
-            if(faceRes.multiFaceLandmarks?.[0]) {
-                const lm = faceRes.multiFaceLandmarks[0];
+            // Xử lý Face
+            if(lastFaceRes?.multiFaceLandmarks?.[0]) {
+                const lm = lastFaceRes.multiFaceLandmarks[0];
                 const EAR = (e) => (Math.abs(lm[e[1]].y-lm[e[5]].y) + Math.abs(lm[e[2]].y-lm[e[4]].y)) / (2*Math.abs(lm[e[0]].x-lm[e[3]].x));
-                // CHỈNH XUỐNG 0.12 theo ý anh
-                particleColor = (EAR([33,160,158,133,153,144]) > 0.12 && EAR([362,385,387,263,373,380]) > 0.12) ? "white" : "#ff00ff";
-                
-                ctxTop.strokeStyle = "#0f0"; ctxTop.strokeRect((1-lm[1].x)*cTop.width-40, lm[1].y*cTop.height-50, 80, 100);
+                particleColor = (EAR([33,160,158,133,153,144]) > 0.12) ? "white" : "#ff00ff";
+                ctxTop.strokeStyle = "#0f0"; ctxTop.strokeRect((1-lm[1].x)*cTop.width-30, lm[1].y*cTop.height-40, 60, 80);
             }
 
-            if(handRes.multiHandLandmarks?.[0]) {
-                const hm = handRes.multiHandLandmarks[0];
-                const getX = (i) => (1-hm[i].x)*cTop.width; const getY = (i) => hm[i].y*cTop.height;
+            // Xử lý Hands
+            if(lastHandRes?.multiHandLandmarks?.[0]) {
+                const hm = lastHandRes.multiHandLandmarks[0];
+                const getX = (i) => (1-hm[i].x)*cTop.width; 
+                const getY = (i) => hm[i].y*cTop.height;
                 
-                // VẼ 6 KHUNG (RADAR MODE)
-                ctxTop.lineWidth = 1; ctxTop.strokeStyle = "#00ffff";
-                [4, 8, 12, 16, 20].forEach(i => ctxTop.strokeRect(getX(i)-10, getY(i)-10, 20, 20)); // 5 khung ngón tay
-                ctxTop.strokeRect(getX(0)-30, getY(0)-30, 60, 60); // 1 khung lòng bàn tay
+                ctxTop.strokeStyle = "#00ffff";
+                [4, 8, 12, 16, 20].forEach(i => ctxTop.strokeRect(getX(i)-8, getY(i)-8, 16, 16));
+                ctxTop.strokeRect(getX(0)-25, getY(0)-25, 50, 50);
 
-                handCenter = {x: hm[9].x * cBottom.width, y: hm[9].y * cBottom.height};
-
+                handCenter = {x: (1-hm[9].x) * cBottom.width, y: hm[9].y * cBottom.height};
                 const up = (i) => hm[i*4+4].y < hm[i*4+2].y;
                 const fingers = [up(0), up(1), up(2), up(3), up(4)];
                 
-                // LOGIC CỬ CHỈ
-                if(fingers[1] && fingers[4] && !fingers[2] && !fingers[3]) currentMode = 'blackhole'; // 🤘
-                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern'; // ✌️
-                else if(!fingers[1] && !fingers[2]) currentMode = 'text'; // ✊
+                if(fingers[1] && fingers[4] && !fingers[2]) currentMode = 'blackhole';
+                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern';
+                else if(!fingers[1] && !fingers[2]) currentMode = 'text';
                 else currentMode = 'free';
             } else { currentMode = 'free'; }
 
-            status.innerText = `SYSTEM: ACTIVE | MODE: ${currentMode.toUpperCase()} | RADAR: 6-AXIS`;
+            status.innerText = `MODE: ${currentMode.toUpperCase()}`;
             particles.forEach((p, i) => {
-                p.update(currentMode === 'text' ? textPoints[i % textPoints.length] : heartPoints[i]);
-                p.draw();
+                let target = (currentMode === 'text') ? textPoints[i % textPoints.length] : heartPoints[i];
+                p.update(target); p.draw();
             });
+            requestAnimationFrame(drawLoop);
         }
 
         const camera = new Camera(video, {
@@ -157,9 +150,12 @@
                 await hands.send({image: video});
             }, width: 640, height: 480
         });
-        camera.start();
-        faceMesh.onResults(res => onResults(res, lastHandRes));
-        let lastHandRes = {}; hands.onResults(res => lastHandRes = res);
+
+        camera.start().then(() => {
+            status.innerText = "SYSTEM READY";
+            drawLoop();
+        });
+
         window.addEventListener('resize', resize); resize();
     </script>
 </body>

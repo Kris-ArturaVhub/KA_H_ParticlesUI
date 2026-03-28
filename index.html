@@ -3,92 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAvnhub V1.10.3 - Kris Artura Edition</title>
+    <title>KAvnhub V1.10.5 - Kris Artura Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
-        :root { --neon-green: #0f0; --neon-pink: #f0f; --dark-bg: #000; }
-        body { margin: 0; background: var(--dark-bg); overflow: hidden; font-family: 'Consolas', monospace; color: var(--neon-green); }
-        
-        /* Layout Structure */
-        #main-wrapper { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
-        #top-section { height: 45%; position: relative; border-bottom: 2px solid #1a1a1a; overflow: hidden; }
-        #bottom-section { height: 55%; position: relative; background: radial-gradient(circle, #080808 0%, #000 100%); }
-        
-        /* Camera & Canvas Elements */
-        video { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.45; z-index: 1; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-
-        /* HUD & UI Elements */
-        .hud-display { position: absolute; top: 15px; left: 15px; font-size: 11px; z-index: 10; line-height: 1.5; text-shadow: 0 0 5px #000; }
-        #system-status { position: absolute; bottom: 15px; width: 100%; text-align: center; font-weight: bold; letter-spacing: 2px; z-index: 10; text-transform: uppercase; }
-        
-        /* Professional Welcome Modal */
-        #welcome-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; justify-content: center; align-items: center; }
-        .modal-card { background: #050505; border: 1px solid var(--neon-green); width: 85%; max-width: 420px; padding: 30px; position: relative; box-shadow: 0 0 30px rgba(0,255,0,0.1); }
-        .btn-close { position: absolute; top: 10px; right: 15px; cursor: pointer; font-size: 28px; color: #fff; }
-        .modal-card h2 { margin: 0 0 15px 0; border-bottom: 1px solid #222; padding-bottom: 10px; font-size: 20px; }
-        .control-list { background: #111; padding: 15px; border-left: 4px solid var(--neon-pink); margin: 20px 0; font-size: 13px; }
-        .control-list b { color: var(--neon-pink); }
+        :root {
+            --neon-green: #00ff00;
+            --neon-blue: #00ffff;
+            --deep-dark: #000000;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--deep-dark);
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--neon-green);
+        }
+        /* Layout Configuration */
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+        #top-panel {
+            height: 45%;
+            position: relative;
+            border-bottom: 2px solid #1a1a1a;
+            box-sizing: border-box;
+        }
+        #bottom-panel {
+            height: 55%;
+            position: relative;
+            background: radial-gradient(circle, #050505 0%, #000 100%);
+        }
+        /* Media Elements */
+        video {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.45;
+            z-index: 1;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+        /* UI HUD Elements */
+        .hud-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 11px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border: 1px solid #333;
+        }
+        #system-log {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 2px;
+            z-index: 10;
+            text-transform: uppercase;
+        }
+        /* Modal Design */
+        #welcome-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-box {
+            background: #080808;
+            border: 1px solid var(--neon-green);
+            width: 90%;
+            max-width: 450px;
+            padding: 30px;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.15);
+        }
+        .close-trigger {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            cursor: pointer;
+            font-size: 30px;
+            color: #ffffff;
+            transition: color 0.3s;
+        }
+        .close-trigger:hover { color: var(--neon-blue); }
+        .modal-box h2 {
+            margin: 0 0 20px 0;
+            font-size: 22px;
+            border-bottom: 2px solid #222;
+            padding-bottom: 10px;
+        }
+        .instruction-grid {
+            background: #111;
+            padding: 15px;
+            border-left: 5px solid var(--neon-blue);
+            margin: 20px 0;
+        }
+        .instruction-grid p {
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .tag { color: var(--neon-blue); font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="welcome-overlay">
-        <div class="modal-card">
-            <span class="btn-close" onclick="document.getElementById('welcome-overlay').style.display='none'">&times;</span>
-            <h2>SYSTEM BOOT: V1.10.3</h2>
-            <p>Author: <b>Kris Artura</b></p>
-            <p>Status: <span style="color: #fff;">Stable Physics Build</span></p>
-            <div class="control-list">
-                <p>🤘 <b>ROCK:</b> Vortex (Hố đen xoáy tâm)</p>
-                <p>🖐️ <b>OPEN:</b> Push (Đẩy hạt ra xa)</p>
-                <p>☝️ <b>POINT:</b> Explosion (Pháo hoa nổ)</p>
-                <p>✌️ <b>PEACE:</b> Heart (Kết tụ trái tim)</p>
-                <p>✊ <b>FIST:</b> Freeze (Đóng băng hạt)</p>
+    <div id="welcome-popup">
+        <div class="modal-box">
+            <span class="close-trigger" onclick="document.getElementById('welcome-popup').style.display='none'">&times;</span>
+            <h2>SYSTEM INITIALIZED V1.10.5</h2>
+            <p>Authorized Developer: <b>Kris Artura</b></p>
+            <p>Core Status: <span style="color: #fff;">Physics Optimized</span></p>
+            
+            <div class="instruction-grid">
+                <p>🤘 <span class="tag">ROCK:</span> Vortex (Event Horizon v2)</p>
+                <p>🖐️ <span class="tag">OPEN:</span> Wind Push (Repulsion Field)</p>
+                <p>☝️ <span class="tag">POINT:</span> Fireworks (Explosion)</p>
+                <p>✌️ <span class="tag">PEACE:</span> Heart Pattern (Stable)</p>
+                <p>✊ <span class="tag">FIST:</span> System Freeze (Kinetic Zero)</p>
             </div>
-            <p style="text-align: center; font-size: 11px; color: #444;">Efficiency First Policy | 2026 High-Performance</p>
+            
+            <p style="text-align: center; font-size: 11px; color: #444;">
+                Performance-First Architecture | (c) 2026
+            </p>
         </div>
     </div>
 
-    <div id="main-wrapper">
-        <div id="top-section">
-            <div class="hud-display">
-                [ ANALYSIS_V1.10.3 ]<br>
-                > MIRROR_SYNC: ENABLED<br>
-                > TARGET_X: <span id="val-x">0</span><br>
-                > TARGET_Y: <span id="val-y">0</span>
+    <div id="container">
+        <div id="top-panel">
+            <div class="hud-overlay">
+                [ ENGINE_LOG_1.10.5 ]<br>
+                > SYNC_STATE: READY<br>
+                > TRACK_X: <span id="pos-x">0</span><br>
+                > TRACK_Y: <span id="pos-y">0</span>
             </div>
             <video id="input_video" playsinline></video>
             <canvas id="canvas-top"></canvas>
         </div>
-        <div id="bottom-section">
-            <div id="system-status">Awaiting Sensor Data...</div>
+        
+        <div id="bottom-panel">
+            <div id="system-log">Sensors Offline...</div>
             <canvas id="canvas-bottom"></canvas>
         </div>
     </div>
 
     <script>
         /**
-         * GLOBAL CONFIGURATION & STATE MANAGEMENT
+         * SECTION 1: SYSTEM CONSTANTS & CONFIGURATION
          */
-        const CONFIG = {
-            particleCount: 1000,
-            vortexStrength: 0.15,
-            vortexDamping: 0.92,
-            pushRadius: 160,
-            explosionPower: 0.15,
-            heartScale: 8
-        };
-
-        const STATE = {
-            mode: 'free',
-            handX: 0,
-            handY: 0,
-            activeColor: "white",
-            isModalOpen: true
-        };
+        const TOTAL_PARTICLES = 1000;
+        const EVENT_HORIZON_RADIUS = 25;
+        const VORTEX_ABSORPTION = 0.18;
+        const VORTEX_ORBIT_SPEED = 0.5;
+        const FRICTION_MIN = 0.94;
+        const FRICTION_MAX = 0.99;
 
         const DOM = {
             video: document.getElementById('input_video'),
@@ -96,194 +188,222 @@
             ctxTop: document.getElementById('canvas-top').getContext('2d'),
             cBottom: document.getElementById('canvas-bottom'),
             ctxBottom: document.getElementById('canvas-bottom').getContext('2d'),
-            lblX: document.getElementById('val-x'),
-            lblY: document.getElementById('val-y'),
-            lblStatus: document.getElementById('system-status'),
-            modal: document.getElementById('welcome-overlay')
+            posX: document.getElementById('pos-x'),
+            posY: document.getElementById('pos-y'),
+            log: document.getElementById('system-log'),
+            modal: document.getElementById('welcome-popup')
+        };
+
+        const STATE = {
+            mode: 'free',
+            targetX: 0,
+            targetY: 0,
+            particleColor: "white",
+            isHandFound: false
         };
 
         let particles = [];
-        let heartPoints = [];
+        let heartPattern = [];
 
         /**
-         * SYSTEM INITIALIZATION
+         * SECTION 2: INITIALIZATION & PATTERN GENERATION
          */
-        function initSystem() {
+        function initializeEngine() {
             DOM.cTop.width = window.innerWidth;
             DOM.cTop.height = window.innerHeight * 0.45;
             DOM.cBottom.width = window.innerWidth;
             DOM.cBottom.height = window.innerHeight * 0.55;
 
-            const centerX = DOM.cBottom.width / 2;
-            const centerY = DOM.cBottom.height / 2;
+            const bWidth = DOM.cBottom.width;
+            const bHeight = DOM.cBottom.height;
+            const centerX = bWidth / 2;
+            const centerY = bHeight / 2;
 
-            // Generate Heart Template
-            heartPoints = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const t = (i / CONFIG.particleCount) * Math.PI * 2;
-                const r = CONFIG.heartScale;
-                heartPoints.push({
-                    x: centerX + r * (16 * Math.pow(Math.sin(t), 3)),
-                    y: centerY - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 15
-                });
+            // Generate Precise Heart Coordinates
+            heartPattern = [];
+            for (let i = 0; i < TOTAL_PARTICLES; i++) {
+                const angle = (i / TOTAL_PARTICLES) * Math.PI * 2;
+                const scale = 8.5;
+                const hX = centerX + scale * (16 * Math.pow(Math.sin(angle), 3));
+                const hY = centerY - scale * (13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle)) + 15;
+                
+                heartPattern.push({ x: hX, y: hY });
 
                 if (!particles[i]) {
                     particles[i] = {
-                        x: Math.random() * DOM.cBottom.width,
-                        y: Math.random() * DOM.cBottom.height,
+                        x: Math.random() * bWidth,
+                        y: Math.random() * bHeight,
                         vx: 0,
-                        vy: 0
+                        vy: 0,
+                        size: 2.2
                     };
                 }
             }
         }
 
         /**
-         * GESTURE RECOGNITION LOGIC
+         * SECTION 3: CORE PHYSICS ENGINE (VORTEX & GESTURE)
          */
-        function analyzeGesture(landmarks) {
-            const up = (i) => landmarks[i * 4 + 4].y < landmarks[i * 4 + 2].y;
-            const f = [up(1), up(2), up(3), up(4)]; // Index, Middle, Ring, Pinky
-
-            if (f[0] && f[3] && !f[1] && !f[2]) return 'vortex';
-            if (f[0] && f[1] && f[2] && f[3]) return 'push';
-            if (f[0] && !f[1] && !f[2] && !f[3]) return 'fire';
-            if (f[0] && f[1] && !f[2] && !f[3]) return 'heart';
-            if (!f[0] && !f[1] && !f[2] && !f[3]) return 'freeze';
-            return 'free';
+        function calculateVortex(p, dist, dx, dy) {
+            // Event Horizon Logic: Hố đen có tâm vô hình
+            if (dist > EVENT_HORIZON_RADIUS) {
+                const spiralAngle = Math.atan2(dy, dx) + (10 / dist) + 0.1;
+                const targetOrbitX = STATE.targetX - Math.cos(spiralAngle) * dist * 0.95;
+                const targetOrbitY = STATE.targetY - Math.sin(spiralAngle) * dist * 0.95;
+                
+                p.vx += (targetOrbitX - p.x) * VORTEX_ABSORPTION;
+                p.vy += (targetOrbitY - p.y) * VORTEX_ABSORPTION;
+            } else {
+                // Decay Acceleration inside Event Horizon
+                p.vx *= 0.8;
+                p.vy *= 0.8;
+                const orbitAngle = Math.atan2(dy, dx) + VORTEX_ORBIT_SPEED;
+                p.vx += (STATE.targetX - Math.cos(orbitAngle) * EVENT_HORIZON_RADIUS - p.x) * 0.05;
+                p.vy += (STATE.targetY - Math.sin(orbitAngle) * EVENT_HORIZON_RADIUS - p.y) * 0.05;
+            }
+            p.vx *= FRICTION_MIN;
+            p.vy *= FRICTION_MIN;
         }
 
-        /**
-         * PHYSICS ENGINE - UPDATE LOOP
-         */
-        function updatePhysics() {
+        function calculateExplosion(p, dist, dx, dy) {
+            if (dist < 80) {
+                p.vx += (p.x - STATE.targetX) * 0.2;
+                p.vy += (p.y - STATE.targetY) * 0.2;
+            }
+            p.vy += 0.25; // Add Gravity
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+        }
+
+        function calculatePush(p, dist, dx, dy) {
+            if (dist < 180) {
+                p.vx -= (dx / dist) * 6;
+                p.vy -= (dy / dist) * 6;
+            }
+            p.vx *= 0.95;
+            p.vy *= 0.95;
+        }
+
+        function updateParticleState() {
             particles.forEach((p, i) => {
-                const dx = STATE.handX - p.x;
-                const dy = STATE.handY - p.y;
+                const dx = STATE.targetX - p.x;
+                const dy = STATE.targetY - p.y;
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-                switch (STATE.mode) {
-                    case 'vortex':
-                        const angle = Math.atan2(dy, dx) + (12 / dist) + 0.15;
-                        p.vx += (STATE.handX - Math.cos(angle) * dist * 0.94 - p.x) * CONFIG.vortexStrength;
-                        p.vy += (STATE.handY - Math.sin(angle) * dist * 0.94 - p.y) * CONFIG.vortexStrength;
-                        if (dist < 30) { p.vx -= (dx / dist) * 2; p.vy -= (dy / dist) * 2; }
-                        p.vx *= CONFIG.vortexDamping; p.vy *= CONFIG.vortexDamping;
-                        break;
-
-                    case 'push':
-                        if (dist < CONFIG.pushRadius) {
-                            p.vx -= (dx / dist) * 5;
-                            p.vy -= (dy / dist) * 5;
-                        }
-                        p.vx *= 0.95; p.vy *= 0.95;
-                        break;
-
-                    case 'fire':
-                        if (dist < 80) {
-                            p.vx += (p.x - STATE.handX) * CONFIG.explosionPower;
-                            p.vy += (p.y - STATE.handY) * CONFIG.explosionPower;
-                        }
-                        p.vy += 0.22; // Gravity
-                        p.vx *= 0.98; p.vy *= 0.98;
-                        break;
-
-                    case 'heart':
-                        p.x += (heartPoints[i].x - p.x) * 0.18;
-                        p.y += (heartPoints[i].y - p.y) * 0.18;
-                        p.vx = p.vy = 0;
-                        break;
-
-                    case 'freeze':
-                        p.vx *= 0.5; p.vy *= 0.5;
-                        break;
-
-                    default:
-                        p.vx += (Math.random() - 0.5) * 0.3;
-                        p.vy += (Math.random() - 0.5) * 0.3;
-                        p.vx *= 0.99; p.vy *= 0.99;
+                if (STATE.mode === 'vortex') {
+                    calculateVortex(p, dist, dx, dy);
+                } else if (STATE.mode === 'push') {
+                    calculatePush(p, dist, dx, dy);
+                } else if (STATE.mode === 'fire') {
+                    calculateExplosion(p, dist, dx, dy);
+                } else if (STATE.mode === 'heart') {
+                    p.x += (heartPattern[i].x - p.x) * 0.22;
+                    p.y += (heartPattern[i].y - p.y) * 0.22;
+                    p.vx = 0; p.vy = 0;
+                } else if (STATE.mode === 'freeze') {
+                    p.vx *= 0.5; p.vy *= 0.5;
+                } else {
+                    p.vx += (Math.random() - 0.5) * 0.35;
+                    p.vy += (Math.random() - 0.5) * 0.35;
+                    p.vx *= FRICTION_MAX;
+                    p.vy *= FRICTION_MAX;
                 }
 
+                // Final Position Update
                 p.x += p.vx;
                 p.y += p.vy;
 
-                // Boundary Collision
-                if (p.x < 0 || p.x > DOM.cBottom.width) p.vx *= -0.7;
-                if (p.y < 0 || p.y > DOM.cBottom.height) p.vy *= -0.7;
+                // Border Constraints
+                if (p.x < 0 || p.x > DOM.cBottom.width) p.vx *= -0.8;
+                if (p.y < 0 || p.y > DOM.cBottom.height) p.vy *= -0.8;
 
-                // Render Particle
-                DOM.ctxBottom.fillStyle = STATE.activeColor;
-                DOM.ctxBottom.fillRect(p.x, p.y, 2.2, 2.2);
+                // Draw Call
+                DOM.ctxBottom.fillStyle = STATE.particleColor;
+                DOM.ctxBottom.fillRect(p.x, p.y, p.size, p.size);
             });
         }
 
         /**
-         * MEDIAPIPE CALLBACKS
+         * SECTION 4: GESTURE DETECTION & CALLBACKS
          */
-        function onResults(face, hands) {
+        function onFrameProcess(faceResults, handResults) {
             DOM.ctxTop.clearRect(0, 0, DOM.cTop.width, DOM.cTop.height);
             DOM.ctxBottom.clearRect(0, 0, DOM.cBottom.width, DOM.cBottom.height);
 
-            // Face Processing
-            if (face.multiFaceLandmarks?.[0]) {
-                const lm = face.multiFaceLandmarks[0];
-                const fx = (1 - lm[1].x) * DOM.cTop.width;
-                const fy = lm[1].y * DOM.cTop.height;
-                DOM.ctxTop.strokeStyle = "#0f0";
-                DOM.ctxTop.strokeRect(fx - 75, fy - 100, 150, 200);
+            // Face Landmark Analysis (Color Selection)
+            if (faceResults.multiFaceLandmarks?.[0]) {
+                const lm = faceResults.multiFaceLandmarks[0];
+                const headX = (1 - lm[1].x) * DOM.cTop.width;
+                const headY = lm[1].y * DOM.cTop.height;
+                DOM.ctxTop.strokeStyle = var(--neon-green);
+                DOM.ctxTop.strokeRect(headX - 75, headY - 100, 150, 200);
 
-                const d = (p1, p2) => Math.sqrt(Math.pow(lm[p1].x-lm[p2].x, 2) + Math.pow(lm[p1].y-lm[p2].y, 2));
-                const ear = (d(159, 154) + d(158, 145)) / (2 * d(33, 133));
-                STATE.activeColor = ear > 0.12 ? "white" : "#f0f";
+                const getDist = (a, b) => Math.sqrt(Math.pow(lm[a].x - lm[b].x, 2) + Math.pow(lm[a].y - lm[b].y, 2));
+                const eyeRatio = (getDist(159, 154) + getDist(158, 145)) / (2 * getDist(33, 133));
+                STATE.particleColor = eyeRatio > 0.12 ? "white" : "#ff00ff";
             }
 
-            // Hand Processing
-            if (hands.multiHandLandmarks?.[0]) {
-                const hm = hands.multiHandLandmarks[0];
-                DOM.ctxTop.strokeStyle = "#0ff";
-                [4, 8, 12, 16, 20].forEach(i => DOM.ctxTop.strokeRect((1 - hm[i].x) * DOM.cTop.width - 12, hm[i].y * DOM.cTop.height - 12, 24, 24));
+            // Hand Landmark Analysis (Coordinate Mapping)
+            if (handResults.multiHandLandmarks?.[0]) {
+                const hm = handResults.multiHandLandmarks[0];
+                STATE.isHandFound = true;
+                DOM.ctxTop.strokeStyle = "#00ffff";
+                [4, 8, 12, 16, 20].forEach(idx => DOM.ctxTop.strokeRect((1 - hm[idx].x) * DOM.cTop.width - 12, hm[idx].y * DOM.cTop.height - 12, 24, 24));
 
-                STATE.handX = (1 - hm[9].x) * DOM.cBottom.width;
-                STATE.handY = hm[9].y * DOM.cBottom.height;
-                STATE.mode = analyzeGesture(hm);
+                // Mapping Absolute Coordinates
+                STATE.targetX = (1 - hm[9].x) * DOM.cBottom.width;
+                STATE.targetY = hm[9].y * DOM.cBottom.height;
+                DOM.posX.innerText = Math.round(STATE.targetX);
+                DOM.posY.innerText = Math.round(STATE.targetY);
 
-                DOM.lblX.innerText = Math.round(STATE.handX);
-                DOM.lblY.innerText = Math.round(STATE.handY);
+                // Gesture Definitions
+                const fingerUp = (f) => hm[f * 4 + 4].y < hm[f * 4 + 2].y;
+                const check = [fingerUp(1), fingerUp(2), fingerUp(3), fingerUp(4)];
+
+                if (check[0] && check[3] && !check[1]) STATE.mode = 'vortex';
+                else if (check[0] && check[1] && check[2] && check[3]) STATE.mode = 'push';
+                else if (check[0] && !check[1] && !check[3]) STATE.mode = 'fire';
+                else if (check[0] && check[1] && !check[2]) STATE.mode = 'heart';
+                else if (!check[0] && !check[1]) STATE.mode = 'freeze';
+                else STATE.mode = 'free';
             } else {
                 STATE.mode = 'free';
+                STATE.isHandFound = false;
             }
 
-            DOM.lblStatus.innerText = `[ SIGNAL: OK ] [ MODE: ${STATE.mode} ]`;
-            updatePhysics();
+            DOM.log.innerText = `[ SESSION: ACTIVE ] | MODE: ${STATE.mode.toUpperCase()}`;
+            updateParticleState();
         }
 
         /**
-         * STARTUP SEQUENCE
+         * SECTION 5: STARTUP SEQUENCE
          */
-        window.onload = () => {
+        window.addEventListener('load', () => {
             setTimeout(() => DOM.modal.style.display = 'flex', 600);
-            initSystem();
+            initializeEngine();
 
-            const faceMesh = new FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
-            faceMesh.setOptions({ maxNumFaces: 1, minDetectionConfidence: 0.6 });
-            faceMesh.onResults(res => onResults(res, lastHands));
+            const fMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+            fMesh.setOptions({ maxNumFaces: 1, minDetectionConfidence: 0.65 });
+            fMesh.onResults(res => onFrameProcess(res, lastHands));
 
-            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6 });
+            const hDetector = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+            hDetector.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.65 });
             let lastHands = {};
-            hands.onResults(res => lastHands = res);
+            hDetector.onResults(res => lastHands = res);
 
-            const camera = new Camera(DOM.video, {
+            const stream = new Camera(DOM.video, {
                 onFrame: async () => {
-                    await faceMesh.send({ image: DOM.video });
-                    await hands.send({ image: DOM.video });
+                    await fMesh.send({ image: DOM.video });
+                    await hDetector.send({ image: DOM.video });
                 },
-                width: 640, height: 480
+                width: 640,
+                height: 480
             });
-            camera.start();
-        };
+            stream.start();
+        });
 
-        window.onresize = initSystem;
+        window.onresize = initializeEngine;
     </script>
 </body>
-</html>
+    </html>
+    

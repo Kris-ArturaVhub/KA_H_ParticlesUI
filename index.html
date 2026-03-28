@@ -3,28 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KAvnhub V8.1 - Fix Black Screen 🌌</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <title>KAvnhub V8.2 - Turbo Pro 🏎️</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-        #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; background: #111; }
+        #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; background: #050505; }
         #bottom-panel { height: 55%; position: relative; background: #000; }
-        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 2; }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
         video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); position: absolute; z-index: 1; }
-        .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 9px; z-index: 5; text-shadow: 0 0 5px #0f0; pointer-events: none; }
-        #status-bar { position: absolute; bottom: 5px; width: 100%; text-align: center; color: #fff; font-size: 11px; font-weight: bold; z-index: 5; }
+        #status-bar { position: absolute; bottom: 10px; width: 100%; text-align: center; color: #0f0; font-size: 12px; z-index: 5; text-shadow: 0 0 5px #000; }
     </style>
 </head>
 <body>
     <div id="top-panel">
-        <div class="hud">>> SYSTEM V8.1: ONLINE<br>>> FIX: SYNC RENDER</div>
         <video id="input_video" playsinline></video>
         <canvas id="canvas-top"></canvas>
     </div>
     <div id="bottom-panel">
-        <div id="status-bar">CAMERA INITIALIZING...</div>
+        <div id="status-bar">🚀 SYSTEM STARTING...</div>
         <canvas id="canvas-bottom"></canvas>
     </div>
 
@@ -34,129 +32,106 @@
         const cBottom = document.getElementById('canvas-bottom'); const ctxBottom = cBottom.getContext('2d');
         const status = document.getElementById('status-bar');
 
-        let PARTICLE_COUNT = 1000;
         let particles = [];
         let currentMode = 'free';
         let particleColor = "white";
         let handCenter = {x: 0, y: 0};
-        let lastFaceRes = null, lastHandRes = null;
+        let lastFace = null, lastHand = null;
 
         function resize() {
             cTop.width = window.innerWidth; cTop.height = window.innerHeight * 0.45;
             cBottom.width = window.innerWidth; cBottom.height = window.innerHeight * 0.55;
-            initPatterns();
+            initParticles();
         }
 
+        // Tạo sẵn tọa độ Heart & Text để tiết kiệm CPU
         let heartPoints = [], textPoints = [];
-        function initPatterns() {
+        function initParticles() {
             const cx = cBottom.width / 2, cy = cBottom.height / 2;
             heartPoints = [];
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                const t = (i / PARTICLE_COUNT) * Math.PI * 2;
-                const r = 8; 
+            for (let i = 0; i < 1000; i++) {
+                const t = (i / 1000) * Math.PI * 2;
+                const r = 9; // Size 60%
                 heartPoints.push({
                     x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
                     y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 20
                 });
+                particles[i] = particles[i] || { x: Math.random()*cBottom.width, y: Math.random()*cBottom.height, vx: 0, vy: 0 };
             }
-            // Tạo chữ KRIS nhanh
-            textPoints = [];
-            ctxBottom.fillStyle = "white"; ctxBottom.font = "bold 80px Arial"; ctxBottom.textAlign = "center";
-            ctxBottom.fillText("KRIS", cx, cy + 30);
-            const data = ctxBottom.getImageData(0,0,cBottom.width,cBottom.height).data;
-            for(let y=0; y<cBottom.height; y+=6) {
-                for(let x=0; x<cBottom.width; x+=6) {
-                    if(data[(y*cBottom.width+x)*4+3] > 128) textPoints.push({x,y});
-                }
-            }
-            ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
         }
-
-        class Particle {
-            constructor() { 
-                this.x = Math.random()*window.innerWidth; this.y = Math.random()*window.innerHeight;
-                this.vx = (Math.random()-0.5)*2; this.vy = (Math.random()-0.5)*2; this.size = Math.random()*2+0.5;
-            }
-            update(target) {
-                if(currentMode === 'blackhole') {
-                    let dx = handCenter.x - this.x; let dy = handCenter.y - this.y;
-                    let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-                    this.vx += (dx/dist) * 0.6; this.vy += (dy/dist) * 0.6;
-                    this.vx *= 0.92; this.vy *= 0.92;
-                } else if((currentMode === 'pattern' || currentMode === 'text') && target) {
-                    this.x += (target.x - this.x)*0.15; this.y += (target.y - this.y)*0.15;
-                } else {
-                    this.x += this.vx; this.y += this.vy;
-                    if(this.x<0 || this.x>cBottom.width) this.vx *= -1;
-                    if(this.y<0 || this.y>cBottom.height) this.vy *= -1;
-                }
-            }
-            draw() { ctxBottom.fillStyle = particleColor; ctxBottom.fillRect(this.x, this.y, this.size, this.size); }
-        }
-
-        for(let i=0; i<PARTICLE_COUNT; i++) particles.push(new Particle());
 
         const faceMesh = new FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
-        faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5});
-        faceMesh.onResults(res => lastFaceRes = res);
+        faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5});
+        faceMesh.onResults(res => lastFace = res);
 
         const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-        hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6});
-        hands.onResults(res => lastHandRes = res);
+        hands.setOptions({maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.5});
+        hands.onResults(res => lastHand = res);
 
-        function drawLoop() {
+        function draw() {
             ctxTop.clearRect(0,0,cTop.width,cTop.height);
             ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
 
-            // Xử lý Face
-            if(lastFaceRes?.multiFaceLandmarks?.[0]) {
-                const lm = lastFaceRes.multiFaceLandmarks[0];
-                const EAR = (e) => (Math.abs(lm[e[1]].y-lm[e[5]].y) + Math.abs(lm[e[2]].y-lm[e[4]].y)) / (2*Math.abs(lm[e[0]].x-lm[e[3]].x));
-                particleColor = (EAR([33,160,158,133,153,144]) > 0.12) ? "white" : "#ff00ff";
-                ctxTop.strokeStyle = "#0f0"; ctxTop.strokeRect((1-lm[1].x)*cTop.width-30, lm[1].y*cTop.height-40, 60, 80);
+            // 1. Vẽ Radar Mặt (Khung to)
+            if(lastFace?.multiFaceLandmarks?.[0]) {
+                const lm = lastFace.multiFaceLandmarks[0];
+                const x = (1 - lm[1].x) * cTop.width;
+                const y = lm[1].y * cTop.height;
+                ctxTop.strokeStyle = "#0f0"; ctxTop.lineWidth = 2;
+                ctxTop.strokeRect(x - 60, y - 80, 120, 160); // Khung to bao cả mặt
+                
+                // Mắt nhạy 0.12
+                const dist = (p1, p2) => Math.sqrt(Math.pow(lm[p1].x-lm[p2].x, 2) + Math.pow(lm[p1].y-lm[p2].y, 2));
+                const ear = (dist(159,154) + dist(158,145)) / (2 * dist(33,133));
+                particleColor = ear > 0.12 ? "white" : "#ff00ff";
             }
 
-            // Xử lý Hands
-            if(lastHandRes?.multiHandLandmarks?.[0]) {
-                const hm = lastHandRes.multiHandLandmarks[0];
-                const getX = (i) => (1-hm[i].x)*cTop.width; 
-                const getY = (i) => hm[i].y*cTop.height;
-                
-                ctxTop.strokeStyle = "#00ffff";
-                [4, 8, 12, 16, 20].forEach(i => ctxTop.strokeRect(getX(i)-8, getY(i)-8, 16, 16));
-                ctxTop.strokeRect(getX(0)-25, getY(0)-25, 50, 50);
+            // 2. Vẽ Radar Tay (6 khung) & Cử chỉ
+            if(lastHand?.multiHandLandmarks?.[0]) {
+                const hm = lastHand.multiHandLandmarks[0];
+                ctxTop.strokeStyle = "#00ffff"; ctxTop.lineWidth = 1;
+                [4, 8, 12, 16, 20].forEach(i => {
+                    ctxTop.strokeRect((1-hm[i].x)*cTop.width - 10, hm[i].y*cTop.height - 10, 20, 20);
+                });
+                ctxTop.strokeRect((1-hm[0].x)*cTop.width - 30, hm[0].y*cTop.height - 30, 60, 60);
 
-                handCenter = {x: (1-hm[9].x) * cBottom.width, y: hm[9].y * cBottom.height};
-                const up = (i) => hm[i*4+4].y < hm[i*4+2].y;
-                const fingers = [up(0), up(1), up(2), up(3), up(4)];
+                handCenter = { x: (1-hm[9].x)*cBottom.width, y: hm[9].y*cBottom.height };
                 
-                if(fingers[1] && fingers[4] && !fingers[2]) currentMode = 'blackhole';
-                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern';
-                else if(!fingers[1] && !fingers[2]) currentMode = 'text';
+                const up = (i) => hm[i*4+4].y < hm[i*4+2].y;
+                if (up(1) && up(4) && !up(2) && !up(3)) currentMode = 'blackhole'; // 🤘
+                else if (up(1) && up(2) && !up(3)) currentMode = 'heart'; // ✌️
+                else if (!up(1) && !up(2)) currentMode = 'freeze'; // ✊
                 else currentMode = 'free';
             } else { currentMode = 'free'; }
 
-            status.innerText = `MODE: ${currentMode.toUpperCase()}`;
+            // 3. Xử lý Hạt
             particles.forEach((p, i) => {
-                let target = (currentMode === 'text') ? textPoints[i % textPoints.length] : heartPoints[i];
-                p.update(target); p.draw();
+                if(currentMode === 'blackhole') {
+                    let dx = handCenter.x - p.x; let dy = handCenter.y - p.y;
+                    let d = Math.sqrt(dx*dx + dy*dy) || 1;
+                    p.vx += (dx/d)*0.5; p.vy += (dy/d)*0.5;
+                    p.vx *= 0.9; p.vy *= 0.9;
+                } else if(currentMode === 'heart') {
+                    p.x += (heartPoints[i].x - p.x)*0.2; p.y += (heartPoints[i].y - p.y)*0.2;
+                } else if(currentMode === 'free') {
+                    p.x += (Math.random()-0.5)*2; p.y += (Math.random()-0.5)*2;
+                }
+                ctxBottom.fillStyle = particleColor;
+                ctxBottom.fillRect(p.x, p.y, 1.5, 1.5);
+                p.x += p.vx; p.y += p.vy;
             });
-            requestAnimationFrame(drawLoop);
+
+            status.innerText = `MODE: ${currentMode.toUpperCase()}`;
+            requestAnimationFrame(draw);
         }
 
         const camera = new Camera(video, {
             onFrame: async () => {
-                await faceMesh.send({image: video});
-                await hands.send({image: video});
+                await Promise.all([faceMesh.send({image: video}), hands.send({image: video})]);
             }, width: 640, height: 480
         });
-
-        camera.start().then(() => {
-            status.innerText = "SYSTEM READY";
-            drawLoop();
-        });
-
-        window.addEventListener('resize', resize); resize();
+        camera.start().then(() => { resize(); draw(); });
+        window.onresize = resize;
     </script>
 </body>
 </html>

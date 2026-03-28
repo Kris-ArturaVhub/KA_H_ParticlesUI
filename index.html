@@ -3,34 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KAvnhub V6 - Hybrid God Mode 🌌</title>
+    <title>KAvnhub V7.1 - Mirror Fixed 🌌</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-        /* Tầng 1: UI Camera & Detector */
+        /* Tầng 1: UI Detector - Hiển thị camera */
         #top-panel { height: 45%; position: relative; border-bottom: 1px solid #333; overflow: hidden; }
         /* Tầng 2: Ma trận hạt */
         #bottom-panel { height: 55%; position: relative; background: radial-gradient(circle, #111 0%, #000 100%); }
-        canvas { display: block; width: 100%; height: 100%; }
-        video { display: none; }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #canvas-bottom { z-index: 1; }
+        video { display: block; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Lật ngược video */
         .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 9px; z-index: 5; text-shadow: 0 0 5px #0f0; }
         #status-bar { position: absolute; bottom: 5px; width: 100%; text-align: center; color: #fff; font-size: 11px; font-weight: bold; z-index: 5; text-shadow: 0 0 10px #ff69b4; }
     </style>
 </head>
 <body>
     <div id="top-panel">
-        <div class="hud">>> SENSOR: ACTIVE<br>>> FACE/HAND RADAR: ON</div>
+        <div class="hud">>> SENSOR: ACTIVE<br>>> FACE/HAND RADAR: ON (REALTIME)</div>
+        <video id="input_video"></video>
         <canvas id="canvas-top"></canvas>
     </div>
     <div id="bottom-panel">
         <div id="status-bar">SYSTEM INITIALIZING...</div>
         <canvas id="canvas-bottom"></canvas>
     </div>
-    <video id="input_video"></video>
 
     <script>
+        const video = document.getElementById('input_video');
         const cTop = document.getElementById('canvas-top');
         const ctxTop = cTop.getContext('2d');
         const cBottom = document.getElementById('canvas-bottom');
@@ -52,19 +54,21 @@
         let heartPoints = [], textPoints = [];
         function initPatterns() {
             const cx = cBottom.width / 2, cy = cBottom.height / 2;
+            
+            // 1. ❤️ CÂN ĐỐI & NHỎ GỌN (✌️)
             heartPoints = [];
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const t = (i / PARTICLE_COUNT) * Math.PI * 2;
-                const r = 8; // Thu nhỏ Trái tim lại nè anh
+                const r = 13; // Chỉnh r cho ❤️ cân đối
                 heartPoints.push({
                     x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
-                    y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t))
+                    y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 30 // Hạ thấp ❤️ cho cân đối
                 });
             }
-            // Chữ KRIS (✊)
+            // 2. Chữ KRIS (✊)
             textPoints = [];
             ctxBottom.font = "bold 100px Arial"; ctxBottom.textAlign = "center";
-            ctxBottom.fillText("Iloveu", cx, cy + 30);
+            ctxBottom.fillText("KRIS", cx, cy + 30);
             const data = ctxBottom.getImageData(0,0,cBottom.width,cBottom.height).data;
             const pixels = [];
             for(let y=0; y<cBottom.height; y+=5) {
@@ -72,6 +76,7 @@
                     if(data[(y*cBottom.width+x)*4+3] > 128) pixels.push({x,y});
                 }
             }
+            ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
             for(let i=0; i<PARTICLE_COUNT; i++) textPoints.push(pixels[i%pixels.length]);
         }
 
@@ -105,41 +110,70 @@
         faceMesh.setOptions({maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5});
         
         const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-        hands.setOptions({maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5});
+        hands.setOptions({maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6}); // Tăng confidence cho tay
 
         function onResults(faceRes, handRes) {
             ctxTop.clearRect(0,0,cTop.width,cTop.height);
             ctxBottom.clearRect(0,0,cBottom.width,cBottom.height);
 
-            // Xử lý Mắt (Face Mesh)
+            // 1. Xử lý Mắt (Face Mesh) & Vẽ UI Camera
             if(faceRes.multiFaceLandmarks && faceRes.multiFaceLandmarks[0]) {
                 const lm = faceRes.multiFaceLandmarks[0];
-                // Tính độ mở mắt (EAR) đơn giản
-                const leftEye = Math.abs(lm[159].y - lm[145].y);
-                const rightEye = Math.abs(lm[386].y - lm[374].y);
-                // Nếu 1 trong 2 mắt nhắm (EAR < 0.01) thì đổi màu
-                particleColor = (leftEye < 0.015 || rightEye < 0.015) ? "#ff00ff" : "white";
+                // Tính độ mở mắt (EAR)
+                const EAR = (eyes) => {
+                    const p2_p6 = Math.sqrt(Math.pow(lm[eyes[1]].x - lm[eyes[5]].x, 2) + Math.pow(lm[eyes[1]].y - lm[eyes[5]].y, 2));
+                    const p3_p5 = Math.sqrt(Math.pow(lm[eyes[2]].x - lm[eyes[4]].x, 2) + Math.pow(lm[eyes[2]].y - lm[eyes[4]].y, 2));
+                    const p1_p4 = Math.sqrt(Math.pow(lm[eyes[0]].x - lm[eyes[3]].x, 2) + Math.pow(lm[eyes[0]].y - lm[eyes[3]].y, 2));
+                    return (p2_p6 + p3_p5) / (2.0 * p1_p4);
+                }
+                const leftEAR = EAR([33, 160, 158, 133, 153, 144]);
+                const rightEAR = EAR([362, 385, 387, 263, 373, 380]);
                 
-                // Vẽ khung mặt UI bên trên
-                ctxTop.strokeStyle = "#0f0"; ctxTop.strokeRect(lm[1].x*cTop.width-50, lm[1].y*cTop.height-70, 100, 120);
-                ctxTop.fillStyle = "#0f0"; ctxTop.fillText("FACE DETECTED", lm[1].x*cTop.width-50, lm[1].y*cTop.height-75);
+                // MỞ CẢ 2 MẮT (EAR > 0.22) -> TRẮNG, CÒN LẠI -> HỒNG
+                particleColor = (leftEAR > 0.22 && rightEAR > 0.22) ? "white" : "#ff00ff";
+                
+                // Vẽ ô phát hiện mặt UI bên trên (Tự điều chỉnh kích cỡ)
+                // Lật ngược tọa độ x để vẽ đúng vị trí sau khi video bị lật ngược
+                const faceBox = {
+                    xMin: 1 - Math.max(lm[362].x, lm[263].x), // Lật xMin
+                    yMin: lm[10].y,
+                    xMax: 1 - Math.min(lm[33].x, lm[133].x), // Lật xMax
+                    yMax: lm[152].y
+                };
+                ctxTop.strokeStyle = "#0f0"; ctxTop.lineWidth = 2;
+                ctxTop.strokeRect(faceBox.xMin*cTop.width - 20, faceBox.yMin*cTop.height - 20, (faceBox.xMax-faceBox.xMin)*cTop.width + 40, (faceBox.yMax-faceBox.yMin)*cTop.height + 40);
+                ctxTop.fillStyle = "#0f0"; ctxTop.font = "bold 10px monospace";
+                ctxTop.fillText("FACE DETECTED", faceBox.xMin*cTop.width - 20, faceBox.yMin*cTop.height - 25);
             }
 
-            // Xử lý Tay (Hands)
+            // 2. Xử lý Tay (Hands) & Cử chỉ
             if(handRes.multiHandLandmarks && handRes.multiHandLandmarks[0]) {
                 const hm = handRes.multiHandLandmarks[0];
                 const up = (i) => hm[i*4+4].y < hm[i*4+2].y;
                 const fingers = [up(0), up(1), up(2), up(3), up(4)];
 
-                if(fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'rain';
-                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern';
-                else if(!fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'text';
-                else if(fingers[1] && fingers[2] && fingers[3]) currentMode = 'freeze';
+                if(fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'rain'; // ☝️
+                else if(fingers[1] && fingers[2] && !fingers[3]) currentMode = 'pattern'; // ✌️ -> ❤️
+                else if(!fingers[1] && !fingers[2] && !fingers[3]) currentMode = 'text'; // ✊ -> KRIS
+                else if(fingers[1] && fingers[2] && fingers[3]) currentMode = 'freeze'; // 🖐️
                 else currentMode = 'free';
 
-                ctxTop.strokeStyle = "#00ffff"; ctxTop.strokeRect(hm[0].x*cTop.width-40, hm[0].y*cTop.height-60, 80, 100);
+                // Vẽ ô phát hiện tay UI bên trên (Tự điều chỉnh kích cỡ)
+                // Lật ngược tọa độ x để vẽ đúng vị trí sau khi video bị lật ngược
+                const handBox = {
+                    xMin: 1 - hm[0].x, yMin: hm[0].y,
+                    xMax: 1 - hm[0].x, yMax: hm[0].y
+                };
+                hm.forEach(p => {
+                    const flippedX = 1 - p.x;
+                    handBox.xMin = Math.min(handBox.xMin, flippedX); handBox.yMin = Math.min(handBox.yMin, p.y);
+                    handBox.xMax = Math.max(handBox.xMax, flippedX); handBox.yMax = Math.max(handBox.yMax, p.y);
+                });
+                ctxTop.strokeStyle = "#00ffff"; ctxTop.lineWidth = 2;
+                ctxTop.strokeRect(handBox.xMin*cTop.width - 10, handBox.yMin*cTop.height - 10, (handBox.xMax-handBox.xMin)*cTop.width + 20, (handBox.yMax-handBox.yMin)*cTop.height + 20);
             } else { currentMode = 'free'; }
 
+            // 3. Cập nhật Status Bar & Vẽ Hạt
             status.innerText = `MODE: ${currentMode.toUpperCase()} | EYE: ${particleColor === 'white' ? 'OPEN' : 'BLINK'}`;
             particles.forEach((p, i) => {
                 p.update(currentMode === 'text' ? textPoints[i] : heartPoints[i]);
@@ -147,14 +181,13 @@
             });
         }
 
-        // Đồng bộ Camera
-        const video = document.getElementById('input_video');
+        // --- ĐỒNG BỘ CAMERA ---
         const camera = new Camera(video, {
             onFrame: async () => {
                 const fRes = await new Promise(r => faceMesh.onResults(res => r(res)) || faceMesh.send({image:video}));
                 const hRes = await new Promise(r => hands.onResults(res => r(res)) || hands.send({image:video}));
                 onResults(fRes, hRes);
-            }, width: 640, height: 480
+            }, width: 1280, height: 720
         });
         camera.start();
         window.addEventListener('resize', resize);

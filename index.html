@@ -59,7 +59,7 @@
             heartPoints = [];
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const t = (i / PARTICLE_COUNT) * Math.PI * 2;
-                const r = 13; // Chỉnh r cho ❤️ cân đối
+                const r = 8; // Chỉnh r cho ❤️ cân đối
                 heartPoints.push({
                     x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
                     y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) + 30 // Hạ thấp ❤️ cho cân đối
@@ -68,7 +68,7 @@
             // 2. Chữ KRIS (✊)
             textPoints = [];
             ctxBottom.font = "bold 100px Arial"; ctxBottom.textAlign = "center";
-            ctxBottom.fillText("KRIS", cx, cy + 30);
+            ctxBottom.fillText("(⁠◍⁠•⁠ᴗ⁠•⁠◍⁠)⁠✧⁠*⁠。", cx, cy + 30);
             const data = ctxBottom.getImageData(0,0,cBottom.width,cBottom.height).data;
             const pixels = [];
             for(let y=0; y<cBottom.height; y+=5) {
@@ -130,7 +130,7 @@
                 const rightEAR = EAR([362, 385, 387, 263, 373, 380]);
                 
                 // MỞ CẢ 2 MẮT (EAR > 0.22) -> TRẮNG, CÒN LẠI -> HỒNG
-                particleColor = (leftEAR > 0.22 && rightEAR > 0.22) ? "white" : "#ff00ff";
+                particleColor = (leftEAR > 0.12 && rightEAR > 0.12) ? "white" : "#ff00ff";
                 
                 // Vẽ ô phát hiện mặt UI bên trên (Tự điều chỉnh kích cỡ)
                 // Lật ngược tọa độ x để vẽ đúng vị trí sau khi video bị lật ngược

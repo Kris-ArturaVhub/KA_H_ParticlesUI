@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KAvnhub FIXED</title>
+<title>KAvnhub FINAL</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <style>
-body{margin:0;background:#000;overflow:hidden;color:#0f0;font-family:Consolas}
+body{margin:0;background:#000;overflow:hidden}
 #top{height:45%;position:relative}
 #bot{height:55%;position:relative}
 video,canvas{position:absolute;width:100%;height:100%;object-fit:cover}
@@ -32,34 +32,34 @@ video{transform:scaleX(-1);opacity:.4}
 <script>
 const COUNT = 850;
 const RADIUS = 15;
-const COLLISION = 3;
 
 const video = document.getElementById("cam");
 const c1 = document.getElementById("c1");
 const c2 = document.getElementById("c2");
-const ctx1 = c1.getContext("2d");
 const ctx2 = c2.getContext("2d");
 
-let W, H;
+let W,H;
 
 const STATE = {
-    x:0, y:0,
+    x:0,y:0,
     mode:"free",
     timer:0,
-    step:0
+    step:0,
+    touch:false
 };
 
-let particles = [];
+let particles=[];
 
+// resize
 function resize(){
     W = c2.width = c1.width = innerWidth;
     H = c2.height = innerHeight*0.55;
     c1.height = innerHeight*0.45;
 }
 resize();
-onresize = resize;
+onresize=resize;
 
-// INIT
+// init
 for(let i=0;i<COUNT;i++){
     particles.push({
         x:Math.random()*W,
@@ -67,183 +67,134 @@ for(let i=0;i<COUNT;i++){
         vx:0,vy:0
     });
 }
-function getGalaxyColor(speed){
-    const t = Math.min(speed * 15, 1);
 
-    const r = Math.floor(150 + 105 * Math.sin(t * 3));
-    const g = Math.floor(100 + 155 * Math.sin(t * 5 + 1));
-    const b = Math.floor(200 + 55 * Math.sin(t * 7 + 2));
+// galaxy color
+function color(speed){
+    let t=Math.min(speed*10,1);
+    return `hsl(${260+t*120},100%,60%)`;
+}
 
-    return `rgb(${r},${g},${b})`;
-    }
-// PHYSICS
-function update(){
-    ctx2.fillStyle = "rgba(0,0,0,0.15)";
+// ==== TOUCH CONTROL ====
+addEventListener("touchmove",e=>{
+    STATE.touch=true;
+    STATE.x=e.touches[0].clientX;
+    STATE.y=e.touches[0].clientY - innerHeight*0.45;
+});
+addEventListener("mousemove",e=>{
+    STATE.touch=true;
+    STATE.x=e.clientX;
+    STATE.y=e.clientY - innerHeight*0.45;
+});
+
+// ==== LOOP (QUAN TRỌNG) ====
+function loop(){
+    ctx2.fillStyle="rgba(0,0,0,0.15)";
     ctx2.fillRect(0,0,W,H);
-    ctx2.fillStyle="white";
 
-    for(let i=0;i<COUNT;i++){
-        let p = particles[i];
+    for(let p of particles){
 
-        let dx = STATE.x - p.x;
-        let dy = STATE.y - p.y;
-        let dist = Math.hypot(dx,dy)||1;
+        let dx=STATE.x-p.x;
+        let dy=STATE.y-p.y;
+        let dist=Math.hypot(dx,dy)||1;
 
-        // ==== MODES ====
         if(STATE.mode==="vortex"){
-            let force = Math.min(120/dist,6);
+            let f=Math.min(120/dist,6);
+            let ax=dx/dist, ay=dy/dist;
 
-            let ax = dx/dist;
-            let ay = dy/dist;
-
-            let swirlX = -ay*1.3;
-            let swirlY = ax*1.3;
+            let sx=-ay*1.3;
+            let sy=ax*1.3;
 
             if(dist>RADIUS){
-                p.vx += ax*force*0.6 + swirlX*force*0.4;
-                p.vy += ay*force*0.6 + swirlY*force*0.4;
+                p.vx+=ax*f*0.6+sx*f*0.4;
+                p.vy+=ay*f*0.6+sy*f*0.4;
             }else{
-                p.vx -= ax*1.2;
-                p.vy -= ay*1.2;
+                p.vx-=ax;
+                p.vy-=ay;
             }
 
             p.vx*=0.92;
             p.vy*=0.92;
         }
 
-        else if(STATE.mode==="push"){
-            if(dist<180){
-                p.vx -= dx/dist*6;
-                p.vy -= dy/dist*6;
-            }
-            p.vx*=0.95;
-            p.vy*=0.95;
-        }
-
         else if(STATE.mode==="fire"){
             if(STATE.step===1){
-                p.vx += (STATE.x-p.x)*0.2;
-                p.vy += (STATE.y-p.y)*0.2;
-                p.vx*=0.85; p.vy*=0.85;
+                p.vx+=(STATE.x-p.x)*0.2;
+                p.vy+=(STATE.y-p.y)*0.2;
+                p.vx*=0.85;p.vy*=0.85;
             }
             else if(STATE.step===2){
-                p.vy -= 8;
-                p.vx += (Math.random()-0.5)*1.5;
+                p.vy-=8;
             }
-            else if(STATE.step===3){
-                p.vx += (Math.random()-0.5)*14;
-                p.vy += (Math.random()-0.5)*14;
-                p.vy += 0.4;
+            else{
+                p.vx+=(Math.random()-0.5)*14;
+                p.vy+=(Math.random()-0.5)*14;
             }
         }
 
         else{
-            p.vx += (Math.random()-0.5)*0.3;
-            p.vy += (Math.random()-0.5)*0.3;
-            p.vx*=0.98;
-            p.vy*=0.98;
+            p.vx+=(Math.random()-0.5)*0.3;
+            p.vy+=(Math.random()-0.5)*0.3;
+            p.vx*=0.98;p.vy*=0.98;
         }
 
-        // ==== COLLISION nhẹ ====
-        for(let j=i+1;j<i+4 && j<COUNT;j++){
-            let p2 = particles[j];
-            let dx2 = p2.x-p.x;
-            let dy2 = p2.y-p.y;
-            let d = Math.hypot(dx2,dy2);
+        p.x+=p.vx;
+        p.y+=p.vy;
 
-            if(d<COLLISION && d>0){
-                let push = (COLLISION-d)/d*0.5;
-                p.vx -= dx2*push;
-                p.vy -= dy2*push;
-                p2.vx += dx2*push;
-                p2.vy += dy2*push;
-            }
-        }
+        // ==== FAKE COMET TRAIL ====
+        ctx2.fillStyle=color(Math.hypot(p.vx,p.vy));
 
-        // move
-        p.x += p.vx;
-        p.y += p.vy;
+        ctx2.globalAlpha=0.3;
+        ctx2.fillRect(p.x-p.vx*2,p.y-p.vy*2,2,2);
 
-        // bound
-        if(p.x<0||p.x>W) p.vx*=-0.7;
-        if(p.y<0||p.y>H) p.vy*=-0.7;
+        ctx2.globalAlpha=0.6;
+        ctx2.fillRect(p.x-p.vx,p.y-p.vy,2,2);
 
-        const speed = Math.hypot(p.vx, p.vy);
+        ctx2.globalAlpha=1;
+        ctx2.fillRect(p.x,p.y,2,2);
+    }
 
-        ctx2.beginPath();
-        ctx2.fillStyle = getGalaxyColor(speed);
-        ctx2.shadowBlur = 8;
-        ctx2.shadowColor = ctx2.fillStyle;
-
-        ctx2.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
-        ctx2.fill();
-            }
-        }
+    requestAnimationFrame(loop);
+}
 
 // ==== MEDIAPIPE ====
-const face = new FaceMesh({
-    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-});
-face.setOptions({maxNumFaces:1});
-
-const hands = new Hands({
+const hands=new Hands({
     locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
 });
 hands.setOptions({maxNumHands:1});
 
-let lastHands={};
+hands.onResults(r=>{
+    if(r.multiHandLandmarks?.[0] && !STATE.touch){
+        let h=r.multiHandLandmarks[0];
 
-hands.onResults(r=>lastHands=r);
+        STATE.x=(1-h[9].x)*W;
+        STATE.y=h[9].y*H;
 
-face.onResults(r=>{
-    ctx1.clearRect(0,0,c1.width,c1.height);
-
-    if(lastHands.multiHandLandmarks?.[0]){
-        let hl = lastHands.multiHandLandmarks[0];
-
-        STATE.x = (1-hl[9].x)*W;
-        STATE.y = hl[9].y*H;
-
-        const up = [
-            hl[4].y < hl[3].y,
-            hl[8].y < hl[6].y,
-            hl[12].y < hl[10].y,
-            hl[16].y < hl[14].y,
-            hl[20].y < hl[18].y
+        let up=[
+            h[4].y<h[3].y,
+            h[8].y<h[6].y,
+            h[12].y<h[10].y,
+            h[16].y<h[14].y,
+            h[20].y<h[18].y
         ];
 
         if(up[0]&&up[4]&&!up[1]) STATE.mode="vortex";
-        else if(up[0]&&up[1]&&up[2]&&up[3]) STATE.mode="push";
         else if(up[0]&&!up[1]) STATE.mode="fire";
         else STATE.mode="free";
-    }else{
-        STATE.mode="free";
     }
-
-    // fire timing
-    if(STATE.mode==="fire"){
-        STATE.timer+=16;
-        if(STATE.timer<500) STATE.step=1;
-        else if(STATE.timer<800) STATE.step=2;
-        else if(STATE.timer<1000) STATE.step=3;
-        else{STATE.timer=0;STATE.step=1;}
-    }else{
-        STATE.timer=0;STATE.step=0;
-    }
-
-    update();
 });
 
-// CAMERA
-new Camera(video,{
+// CAMERA FIX
+const cam=new Camera(video,{
     onFrame:async ()=>{
-        await Promise.all([
-            face.send({image:video}),
-            hands.send({image:video})
-        ]);
+        await hands.send({image:video});
     },
     width:640,height:480
-}).start();
+});
+
+cam.start();
+video.play(); // FIX đen màn
+
+loop(); // FIX không render
 
 </script>
 </body>

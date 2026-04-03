@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KAvnhub FINAL STABLE</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
 <style>
 body{margin:0;background:#000;overflow:hidden}
 #top{height:45%;position:relative}
@@ -174,42 +171,9 @@ function loop(){
 }
 
 // ===== MEDIAPIPE =====
-const hands=new Hands({
-    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-});
-hands.setOptions({maxNumHands:1});
-
-hands.onResults(r=>{
-    if(r.multiHandLandmarks?.[0] && !STATE.touch){
-        let h=r.multiHandLandmarks[0];
-
-        STATE.x=(1-h[9].x)*W;
-        STATE.y=h[9].y*H;
-
-        let up=[
-            h[4].y<h[3].y,
-            h[8].y<h[6].y,
-            h[12].y<h[10].y,
-            h[16].y<h[14].y,
-            h[20].y<h[18].y
-        ];
-
-        if(up[0]&&up[4]&&!up[1]) STATE.mode="vortex";
-        else if(up[0]&&!up[1]) STATE.mode="fire";
-        else STATE.mode="free";
-    }
-});
 
 // ===== CAMERA =====
-const cam=new Camera(video,{
-    onFrame:async ()=>{
-       hands.send({image:video});
-    },
-    width:640,height:480
-});
 
-cam.start();
-video.onloadeddata = () => video.play();
 ctx2.fillStyle="red";
 ctx2.fillRect(0,0,20,20);
 // START LOOP

@@ -1,381 +1,250 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAvnhub V1.10.9 - Kris Artura</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <style>
-        :root {
-            --neon: #00ff00;
-            --info: #00ffff;
-            --bg: #000;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            background: var(--bg);
-            overflow: hidden;
-            font-family: 'Consolas', 'Courier New', monospace;
-            color: var(--neon);
-        }
-        /* Layout Modules */
-        #container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            width: 100vw;
-        }
-        #monitor-area {
-            height: 45%;
-            position: relative;
-            border-bottom: 2px solid #1a1a1a;
-            box-sizing: border-box;
-        }
-        #simulation-area {
-            height: 55%;
-            position: relative;
-            background: #000;
-        }
-        /* Visual Elements */
-        video {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            opacity: 0.4;
-            z-index: 1;
-        }
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 5;
-            pointer-events: none;
-        }
-        /* HUD UI */
-        .hud-info {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            font-size: 11px;
-            z-index: 10;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 12px;
-            border-left: 3px solid var(--neon);
-            pointer-events: none;
-        }
-        #mode-display {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            font-weight: bold;
-            letter-spacing: 2px;
-            z-index: 10;
-            text-transform: uppercase;
-            text-shadow: 0 0 10px var(--neon);
-        }
-        /* Modal Popup */
-        #init-popup {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 1000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-box {
-            background: #050505;
-            border: 1px solid var(--neon);
-            width: 85%;
-            max-width: 440px;
-            padding: 30px;
-            position: relative;
-            box-shadow: 0 0 30px rgba(0, 255, 0, 0.1);
-        }
-        .btn-close {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            cursor: pointer;
-            font-size: 28px;
-            color: #fff;
-        }
-        .shortcut-list {
-            background: #111;
-            padding: 15px;
-            border-left: 4px solid var(--info);
-            margin: 20px 0;
-            font-size: 13px;
-        }
-        .shortcut-list p { margin: 8px 0; }
-        b { color: var(--info); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAvnhub FIXED</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<style>
+body{margin:0;background:#000;overflow:hidden;color:#0f0;font-family:Consolas}
+#top{height:45%;position:relative}
+#bot{height:55%;position:relative}
+video,canvas{position:absolute;width:100%;height:100%;object-fit:cover}
+video{transform:scaleX(-1);opacity:.4}
+</style>
 </head>
+
 <body>
 
-    <div id="init-popup">
-        <div class="modal-box">
-            <span class="btn-close" onclick="document.getElementById('init-popup').style.display='none'">&times;</span>
-            <h2 style="margin:0 0 15px 0; border-bottom: 1px solid #222;">SYSTEM V1.10.9</h2>
-            <p>Author: <b>Kris Artura</b></p>
-            <div class="shortcut-list">
-                <p>🤘 <b>ROCK:</b> Vortex (Hút mạnh + Phản tâm 2px)</p>
-                <p>🖐️ <b>OPEN:</b> Push (Lực đẩy phản lực)</p>
-                <p>☝️ <b>POINT:</b> Firework (Tụ -> Phóng -> Nổ)</p>
-                <p>💥 <b>PHYSICS:</b> Collision (Tự đẩy nhau 3px)</p>
-            </div>
-            <p style="text-align: center; font-size: 10px; color: #444;">Physics Engine Optimized | Stable Build</p>
-        </div>
-    </div>
+<div id="top">
+<video id="cam" playsinline></video>
+<canvas id="c1"></canvas>
+</div>
 
-    <div id="container">
-        <div id="monitor-area">
-            <div class="hud-info">
-                [ KRIS_CORE_STABLE ]<br>
-                > SYNC: ACTIVE<br>
-                > X_COORD: <span id="pos-x">0</span><br>
-                > Y_COORD: <span id="pos-y">0</span>
-            </div>
-            <video id="input-stream" playsinline></video>
-            <canvas id="canvas-top"></canvas>
-        </div>
-        <div id="simulation-area">
-            <div id="mode-display">Awaiting Signal...</div>
-            <canvas id="canvas-bottom"></canvas>
-        </div>
-    </div>
+<div id="bot">
+<canvas id="c2"></canvas>
+</div>
 
-    <script>
-        /**
-         * 1. CONFIGURATION & STATE
-         */
-        const PARTICLE_NUM = 850;
-        const COLLISION_SENSITIVITY = 3.0; // Khoảng cách va chạm giữa các hạt
-        const REPT_STRENGTH = 2.0;       // Lực đẩy nhẹ 1-5px tại tâm
-        const STORM_EYE = 15;            // Bán kính tâm vô hình
-        
-        const UI = {
-            vid: document.getElementById('input-stream'),
-            cT: document.getElementById('canvas-top'),
-            ctxT: document.getElementById('canvas-top').getContext('2d'),
-            cB: document.getElementById('canvas-bottom'),
-            ctxB: document.getElementById('canvas-bottom').getContext('2d'),
-            lblX: document.getElementById('pos-x'),
-            lblY: document.getElementById('pos-y'),
-            lblMode: document.getElementById('mode-display'),
-            modal: document.getElementById('init-popup')
-        };
+<script>
+const COUNT = 850;
+const RADIUS = 15;
+const COLLISION = 3;
 
-        const DATA = {
-            mode: 'free',
-            tx: 0, ty: 0,
-            color: "white",
-            timer: 0,
-            step: 0
-        };
+const video = document.getElementById("cam");
+const c1 = document.getElementById("c1");
+const c2 = document.getElementById("c2");
+const ctx1 = c1.getContext("2d");
+const ctx2 = c2.getContext("2d");
 
-        let pts = [];
-        let heartPattern = [];
+let W, H;
 
-        /**
-         * 2. INITIALIZATION ENGINE
-         */
-        function boot() {
-            UI.cT.width = window.innerWidth;
-            UI.cT.height = window.innerHeight * 0.45;
-            UI.cB.width = window.innerWidth;
-            UI.cB.height = window.innerHeight * 0.55;
+const STATE = {
+    x:0, y:0,
+    mode:"free",
+    timer:0,
+    step:0
+};
 
-            const cx = UI.cB.width / 2;
-            const cy = UI.cB.height / 2;
+let particles = [];
 
-            heartPattern = [];
-            for (let i = 0; i < PARTICLE_NUM; i++) {
-                const t = (i / PARTICLE_NUM) * Math.PI * 2;
-                const r = 8.5;
-                // Pre-calculate heart positions
-                heartPattern.push({
-                    x: cx + r * (16 * Math.pow(Math.sin(t), 3)),
-                    y: cy - r * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 15
-                });
+function resize(){
+    W = c2.width = c1.width = innerWidth;
+    H = c2.height = innerHeight*0.55;
+    c1.height = innerHeight*0.45;
+}
+resize();
+onresize = resize;
 
-                if (!pts[i]) {
-                    pts[i] = {
-                        x: Math.random() * UI.cB.width,
-                        y: Math.random() * UI.cB.height,
-                        vx: 0, vy: 0
-                    };
-                }
+// INIT
+for(let i=0;i<COUNT;i++){
+    particles.push({
+        x:Math.random()*W,
+        y:Math.random()*H,
+        vx:0,vy:0
+    });
+}
+function getGalaxyColor(speed){
+    const t = Math.min(speed * 15, 1);
+
+    const r = Math.floor(150 + 105 * Math.sin(t * 3));
+    const g = Math.floor(100 + 155 * Math.sin(t * 5 + 1));
+    const b = Math.floor(200 + 55 * Math.sin(t * 7 + 2));
+
+    return `rgb(${r},${g},${b})`;
+    }
+// PHYSICS
+function update(){
+    ctx2.fillStyle = "rgba(0,0,0,0.15)";
+    ctx2.fillRect(0,0,W,H);
+    ctx2.fillStyle="white";
+
+    for(let i=0;i<COUNT;i++){
+        let p = particles[i];
+
+        let dx = STATE.x - p.x;
+        let dy = STATE.y - p.y;
+        let dist = Math.hypot(dx,dy)||1;
+
+        // ==== MODES ====
+        if(STATE.mode==="vortex"){
+            let force = Math.min(120/dist,6);
+
+            let ax = dx/dist;
+            let ay = dy/dist;
+
+            let swirlX = -ay*1.3;
+            let swirlY = ax*1.3;
+
+            if(dist>RADIUS){
+                p.vx += ax*force*0.6 + swirlX*force*0.4;
+                p.vy += ay*force*0.6 + swirlY*force*0.4;
+            }else{
+                p.vx -= ax*1.2;
+                p.vy -= ay*1.2;
+            }
+
+            p.vx*=0.92;
+            p.vy*=0.92;
+        }
+
+        else if(STATE.mode==="push"){
+            if(dist<180){
+                p.vx -= dx/dist*6;
+                p.vy -= dy/dist*6;
+            }
+            p.vx*=0.95;
+            p.vy*=0.95;
+        }
+
+        else if(STATE.mode==="fire"){
+            if(STATE.step===1){
+                p.vx += (STATE.x-p.x)*0.2;
+                p.vy += (STATE.y-p.y)*0.2;
+                p.vx*=0.85; p.vy*=0.85;
+            }
+            else if(STATE.step===2){
+                p.vy -= 8;
+                p.vx += (Math.random()-0.5)*1.5;
+            }
+            else if(STATE.step===3){
+                p.vx += (Math.random()-0.5)*14;
+                p.vy += (Math.random()-0.5)*14;
+                p.vy += 0.4;
             }
         }
 
-        /**
-         * 3. PHYSICS COMPUTATION BLOCK
-         */
-        function runPhysics() {
-            for (let i = 0; i < PARTICLE_NUM; i++) {
-                const p = pts[i];
-                const dx = DATA.tx - p.x;
-                const dy = DATA.ty - p.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        else{
+            p.vx += (Math.random()-0.5)*0.3;
+            p.vy += (Math.random()-0.5)*0.3;
+            p.vx*=0.98;
+            p.vy*=0.98;
+        }
 
-                // --- GESTURE MODULE ---
-                if (DATA.mode === 'vortex') {
-                    if (dist > STORM_EYE) {
-                        const spiral = Math.atan2(dy, dx) + (12 / dist) + 0.15;
-                        p.vx += (DATA.tx - Math.cos(spiral) * dist * 0.94 - p.x) * 0.22;
-                        p.vy += (DATA.ty - Math.sin(spiral) * dist * 0.94 - p.y) * 0.22;
-                    } else {
-                        // REPT: Đẩy hạt ra nhẹ khi chạm tâm
-                        p.vx -= (dx / dist) * REPT_STRENGTH;
-                        p.vy -= (dy / dist) * REPT_STRENGTH;
-                        p.vx *= 0.8; p.vy *= 0.8;
-                    }
-                    p.vx *= 0.94; p.vy *= 0.94;
-                } 
-                else if (DATA.mode === 'fire') {
-                    if (DATA.step === 1) { // Giai đoạn tụ lại
-                        p.vx += (DATA.tx - p.x) * 0.25;
-                        p.vy += (DATA.ty - p.y) * 0.25;
-                        p.vx *= 0.85; p.vy *= 0.85;
-                    } else if (DATA.step === 2) { // Giai đoạn bay lên
-                        p.vy -= 14; 
-                        p.vx += (Math.random() - 0.5) * 2;
-                    } else if (DATA.step === 3) { // Giai đoạn nổ
-                        p.vx += (Math.random() - 0.5) * 18;
-                        p.vy += (Math.random() - 0.5) * 18;
-                        p.vy += 0.4;
-                    }
-                }
-                else if (DATA.mode === 'push') {
-                    if (dist < 180) {
-                        p.vx -= (dx / dist) * 8;
-                        p.vy -= (dy / dist) * 8;
-                    }
-                    p.vx *= 0.95; p.vy *= 0.95;
-                }
-                else if (DATA.mode === 'heart') {
-                    p.x += (heartPattern[i].x - p.x) * 0.2;
-                    p.y += (heartPattern[i].y - p.y) * 0.2;
-                    p.vx = 0; p.vy = 0;
-                }
-                else if (DATA.mode === 'freeze') {
-                    p.vx *= 0.5; p.vy *= 0.5;
-                }
-                else {
-                    p.vx += (Math.random() - 0.5) * 0.4;
-                    p.vy += (Math.random() - 0.5) * 0.4;
-                    p.vx *= 0.98; p.vy *= 0.98;
-                }
+        // ==== COLLISION nhẹ ====
+        for(let j=i+1;j<i+4 && j<COUNT;j++){
+            let p2 = particles[j];
+            let dx2 = p2.x-p.x;
+            let dy2 = p2.y-p.y;
+            let d = Math.hypot(dx2,dy2);
 
-                // --- COLLISION MODULE (3px) ---
-                const nextP = pts[(i + 1) % PARTICLE_NUM];
-                const cdx = nextP.x - p.x;
-                const cdy = nextP.y - p.y;
-                const cDist = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
-                
-                if (cDist < COLLISION_SENSITIVITY) {
-                    p.vx -= (cdx / cDist) * 1.5;
-                    p.vy -= (cdy / cDist) * 1.5;
-                }
-
-                // --- INTEGRATION & RENDER ---
-                p.x += p.vx;
-                p.y += p.vy;
-
-                if (p.x < 0 || p.x > UI.cB.width) p.vx *= -0.7;
-                if (p.y < 0 || p.y > UI.cB.height) p.vy *= -0.7;
-
-                UI.ctxB.fillStyle = DATA.color;
-                UI.ctxB.fillRect(p.x, p.y, 2.2, 2.2);
+            if(d<COLLISION && d>0){
+                let push = (COLLISION-d)/d*0.5;
+                p.vx -= dx2*push;
+                p.vy -= dy2*push;
+                p2.vx += dx2*push;
+                p2.vy += dy2*push;
             }
         }
 
-        /**
-         * 4. TRACKING & CALLBACKS
-         */
-        function handleFrame(faceRes, handRes) {
-            UI.ctxT.clearRect(0, 0, UI.cT.width, UI.cT.height);
-            UI.ctxB.clearRect(0, 0, UI.cB.width, UI.cB.height);
+        // move
+        p.x += p.vx;
+        p.y += p.vy;
 
-            if (faceRes.multiFaceLandmarks?.[0]) {
-                const fl = faceRes.multiFaceLandmarks[0];
-                const fx = (1 - fl[1].x) * UI.cT.width;
-                const fy = fl[1].y * UI.cT.height;
-                UI.ctxT.strokeStyle = "#0f0";
-                UI.ctxT.strokeRect(fx - 75, fy - 100, 150, 200);
-                
-                const d = (a, b) => Math.sqrt(Math.pow(fl[a].x-fl[b].x, 2) + Math.pow(fl[a].y-fl[b].y, 2));
-                const ear = (d(159, 154) + d(158, 145)) / (2 * d(33, 133));
-                DATA.color = ear > 0.12 ? "white" : "#f0f";
+        // bound
+        if(p.x<0||p.x>W) p.vx*=-0.7;
+        if(p.y<0||p.y>H) p.vy*=-0.7;
+
+        const speed = Math.hypot(p.vx, p.vy);
+
+        ctx2.beginPath();
+        ctx2.fillStyle = getGalaxyColor(speed);
+        ctx2.shadowBlur = 8;
+        ctx2.shadowColor = ctx2.fillStyle;
+
+        ctx2.arc(p.x, p.y, 1.8, 0, Math.PI * 2);
+        ctx2.fill();
             }
-
-            if (handRes.multiHandLandmarks?.[0]) {
-                const hl = handRes.multiHandLandmarks[0];
-                DATA.tx = (1 - hl[9].x) * UI.cB.width;
-                DATA.ty = hl[9].y * UI.cB.height;
-                UI.lblX.innerText = Math.round(DATA.tx);
-                UI.lblY.innerText = Math.round(DATA.ty);
-
-                const up = (f) => hl[f * 4 + 4].y < hl[f * 4 + 2].y;
-                const fingers = [up(1), up(2), up(3), up(4)];
-
-                if (fingers[0] && fingers[3] && !fingers[1]) DATA.mode = 'vortex';
-                else if (fingers[0] && fingers[1] && fingers[2] && fingers[3]) DATA.mode = 'push';
-                else if (fingers[0] && !fingers[1] && !fingers[3]) DATA.mode = 'fire';
-                else if (fingers[0] && fingers[1] && !fingers[2]) DATA.mode = 'heart';
-                else if (!fingers[0] && !fingers[1]) DATA.mode = 'freeze';
-                else DATA.mode = 'free';
-            } else {
-                DATA.mode = 'free';
-            }
-
-            if (DATA.mode === 'fire') {
-                DATA.timer += 16.6;
-                if (DATA.timer < 500) DATA.step = 1;
-                else if (DATA.timer < 800) DATA.step = 2;
-                else if (DATA.timer < 1000) DATA.step = 3;
-                else { DATA.timer = 0; DATA.step = 1; }
-            } else { DATA.timer = 0; DATA.step = 0; }
-
-            UI.lblMode.innerText = `[ SIGNAL_OK ] [ MODE: ${DATA.mode.toUpperCase()} ]`;
-            runPhysics();
         }
 
-        /**
-         * 5. SYSTEM STARTUP
-         */
-        window.addEventListener('load', () => {
-            setTimeout(() => UI.modal.style.display = 'flex', 600);
-            boot();
+// ==== MEDIAPIPE ====
+const face = new FaceMesh({
+    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+});
+face.setOptions({maxNumFaces:1});
 
-            const faceMesh = new FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
-            faceMesh.setOptions({ maxNumFaces: 1, minDetectionConfidence: 0.6 });
-            faceMesh.onResults(res => handleFrame(res, lastHands));
+const hands = new Hands({
+    locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+hands.setOptions({maxNumHands:1});
 
-            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6 });
-            let lastHands = {};
-            hands.onResults(res => lastHands = res);
+let lastHands={};
 
-            new Camera(UI.vid, {
-                onFrame: async () => {
-                    await faceMesh.send({ image: UI.vid });
-                    await hands.send({ image: UI.vid });
-                },
-                width: 640, height: 480
-            }).start();
-        });
+hands.onResults(r=>lastHands=r);
 
-        window.onresize = boot;
-    </script>
+face.onResults(r=>{
+    ctx1.clearRect(0,0,c1.width,c1.height);
+
+    if(lastHands.multiHandLandmarks?.[0]){
+        let hl = lastHands.multiHandLandmarks[0];
+
+        STATE.x = (1-hl[9].x)*W;
+        STATE.y = hl[9].y*H;
+
+        const up = [
+            hl[4].y < hl[3].y,
+            hl[8].y < hl[6].y,
+            hl[12].y < hl[10].y,
+            hl[16].y < hl[14].y,
+            hl[20].y < hl[18].y
+        ];
+
+        if(up[0]&&up[4]&&!up[1]) STATE.mode="vortex";
+        else if(up[0]&&up[1]&&up[2]&&up[3]) STATE.mode="push";
+        else if(up[0]&&!up[1]) STATE.mode="fire";
+        else STATE.mode="free";
+    }else{
+        STATE.mode="free";
+    }
+
+    // fire timing
+    if(STATE.mode==="fire"){
+        STATE.timer+=16;
+        if(STATE.timer<500) STATE.step=1;
+        else if(STATE.timer<800) STATE.step=2;
+        else if(STATE.timer<1000) STATE.step=3;
+        else{STATE.timer=0;STATE.step=1;}
+    }else{
+        STATE.timer=0;STATE.step=0;
+    }
+
+    update();
+});
+
+// CAMERA
+new Camera(video,{
+    onFrame:async ()=>{
+        await Promise.all([
+            face.send({image:video}),
+            hands.send({image:video})
+        ]);
+    },
+    width:640,height:480
+}).start();
+
+</script>
 </body>
 </html>

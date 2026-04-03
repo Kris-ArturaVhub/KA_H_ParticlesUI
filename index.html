@@ -210,7 +210,8 @@ const cam=new Camera(video,{
 
 cam.start();
 video.onloadeddata = () => video.play();
-
+ctx2.fillStyle="red";
+ctx2.fillRect(0,0,20,20);
 // START LOOP
 loop();
 </script>

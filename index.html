@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KAvnhub FINAL</title>
+<title>KAvnhub FINAL STABLE</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <style>
@@ -41,7 +40,8 @@ const ctx2 = c2.getContext("2d");
 let W,H;
 
 const STATE = {
-    x:0,y:0,
+    x:0,
+    y:0,
     mode:"free",
     timer:0,
     step:0,
@@ -50,16 +50,20 @@ const STATE = {
 
 let particles=[];
 
-// resize
+// ===== RESIZE =====
 function resize(){
     W = c2.width = c1.width = innerWidth;
     H = c2.height = innerHeight*0.55;
     c1.height = innerHeight*0.45;
+
+    // set vị trí mặc định ở giữa (FIX MÀN ĐEN)
+    STATE.x = W/2;
+    STATE.y = H/2;
 }
 resize();
-onresize=resize;
+window.onresize = resize;
 
-// init
+// ===== INIT =====
 for(let i=0;i<COUNT;i++){
     particles.push({
         x:Math.random()*W,
@@ -68,25 +72,33 @@ for(let i=0;i<COUNT;i++){
     });
 }
 
-// galaxy color
+// ===== COLOR =====
 function color(speed){
     let t=Math.min(speed*10,1);
     return `hsl(${260+t*120},100%,60%)`;
 }
 
-// ==== TOUCH CONTROL ====
+// ===== TOUCH =====
+function updateTouch(x,y){
+    const rect = c2.getBoundingClientRect();
+    STATE.x = x;
+    STATE.y = y - rect.top;
+}
+
 addEventListener("touchmove",e=>{
     STATE.touch=true;
-    STATE.x=e.touches[0].clientX;
-    STATE.y=e.touches[0].clientY - innerHeight*0.45;
-});
-addEventListener("mousemove",e=>{
-    STATE.touch=true;
-    STATE.x=e.clientX;
-    STATE.y=e.clientY - innerHeight*0.45;
+    updateTouch(e.touches[0].clientX, e.touches[0].clientY);
 });
 
-// ==== LOOP (QUAN TRỌNG) ====
+addEventListener("mousemove",e=>{
+    STATE.touch=true;
+    updateTouch(e.clientX, e.clientY);
+});
+
+addEventListener("touchend",()=>STATE.touch=false);
+addEventListener("mouseup",()=>STATE.touch=false);
+
+// ===== LOOP =====
 function loop(){
     ctx2.fillStyle="rgba(0,0,0,0.15)";
     ctx2.fillRect(0,0,W,H);
@@ -140,9 +152,14 @@ function loop(){
         p.x+=p.vx;
         p.y+=p.vy;
 
-        // ==== FAKE COMET TRAIL ====
-        ctx2.fillStyle=color(Math.hypot(p.vx,p.vy));
+        if(p.x<0||p.x>W) p.vx*=-0.7;
+        if(p.y<0||p.y>H) p.vy*=-0.7;
 
+        let sp=Math.hypot(p.vx,p.vy);
+
+        ctx2.fillStyle=color(sp);
+
+        // fake comet trail
         ctx2.globalAlpha=0.3;
         ctx2.fillRect(p.x-p.vx*2,p.y-p.vy*2,2,2);
 
@@ -156,7 +173,7 @@ function loop(){
     requestAnimationFrame(loop);
 }
 
-// ==== MEDIAPIPE ====
+// ===== MEDIAPIPE =====
 const hands=new Hands({
     locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
 });
@@ -183,7 +200,7 @@ hands.onResults(r=>{
     }
 });
 
-// CAMERA FIX
+// ===== CAMERA =====
 const cam=new Camera(video,{
     onFrame:async ()=>{
         await hands.send({image:video});
@@ -192,10 +209,11 @@ const cam=new Camera(video,{
 });
 
 cam.start();
-video.play(); // FIX đen màn
+video.onloadeddata = () => video.play();
 
-loop(); // FIX không render
-
+// START LOOP
+loop();
 </script>
+
 </body>
-</html>
+    </html>

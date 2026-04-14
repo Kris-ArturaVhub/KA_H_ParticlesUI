@@ -3,39 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AI Filter Pro Fix - Kris Artura</title>
+<title>AI Filter Pro Final - Kris Artura</title>
 
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 
 <style>
-body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-#guide {
-  position: fixed; top: 15px; width: 100%; text-align: center;
-  color: white; z-index: 10; font-size: 14px; text-shadow: 2px 2px 4px #000;
-}
-#btn {
-  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-  padding: 15px 35px; background: cyan; border-radius: 50px;
-  z-index: 10; border: none; font-weight: bold; cursor: pointer;
-}
-#status {
-  position: fixed; top: 50%; width: 100%; text-align: center;
-  color: cyan; z-index: 5; font-size: 18px;
-}
-video, canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-video { display: none; } /* Ẩn video gốc để chỉ hiện canvas đã xử lý */
+  body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+  
+  /* Màn hình chờ khởi động */
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100; color: cyan;
+  }
+  
+  #start-btn {
+    padding: 20px 40px; font-size: 20px; background: cyan;
+    border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+    box-shadow: 0 0 20px cyan; margin-top: 20px; display: none;
+  }
+
+  #guide {
+    position: fixed; top: 15px; width: 100%; text-align: center;
+    color: white; z-index: 10; font-size: 14px; text-shadow: 2px 2px 4px #000;
+    pointer-events: none;
+  }
+
+  #capture-btn {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    padding: 15px 35px; background: cyan; border-radius: 50px;
+    z-index: 10; border: none; font-weight: bold; cursor: pointer;
+  }
+
+  video, canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; }
+  video { display: none; }
 </style>
 </head>
 
 <body>
 
-<div id="status">Đang khởi tạo Camera & AI...</div>
-<div id="guide">
-✌️ Tai thỏ | ✋ Kính | ☝️ Mặt nạ | ✊ Xoá Filter
+<div id="overlay">
+  <div id="status-text">Đang tải dữ liệu AI...</div>
+  <button id="start-btn">BẮT ĐẦU CAMERA 🚀</button>
 </div>
 
-<button id="btn">CHỤP 📸</button>
+<div id="guide">
+  ✌️ Tai thỏ | ✋ Kính | ☝️ Mặt nạ | ✊ Xoá
+</div>
+
+<button id="capture-btn">CHỤP 📸</button>
 
 <video id="video" autoplay muted playsinline></video>
 <canvas id="canvas"></canvas>
@@ -44,58 +61,49 @@ video { display: none; } /* Ẩn video gốc để chỉ hiện canvas đã xử
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const statusTxt = document.getElementById("status");
+const statusTxt = document.getElementById("status-text");
+const startBtn = document.getElementById("start-btn");
+const overlay = document.getElementById("overlay");
 
 let filter = "none";
 let tick = 0;
 let frame = 0;
 let lastFace = null;
+let modelsLoaded = false;
 
-// 1. TỐI ƯU RESIZE
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.onresize = resize;
-resize();
-
-// 2. KHỞI ĐỘNG CAMERA (Cải tiến)
-async function setupCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { 
-        facingMode: "user",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    });
-    video.srcObject = stream;
-    return new Promise((resolve) => {
-      video.onloadedmetadata = () => {
-        statusTxt.innerText = "Đang tải AI Models...";
-        resolve(video);
-      };
-    });
-  } catch (err) {
-    statusTxt.style.color = "red";
-    statusTxt.innerText = "Lỗi: Không thể truy cập Camera. Hãy cấp quyền!";
-    console.error(err);
-  }
-}
-
-// 3. TẢI MODELS
+// 1. TẢI MODEL TRƯỚC
 async function loadModels() {
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js/weights';
   try {
     await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
     await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    modelsLoaded = true;
+    statusTxt.innerText = "Dữ liệu đã sẵn sàng!";
+    startBtn.style.display = "block";
   } catch (e) {
-    statusTxt.innerText = "Lỗi tải Model AI. Kiểm tra mạng!";
+    statusTxt.innerText = "Lỗi tải dữ liệu. Hãy tải lại trang!";
   }
 }
 
-// 4. MEDIA PIPE HANDS
+// 2. KÍCH HOẠT CAMERA KHI BẤM NÚT
+startBtn.onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false
+    });
+    video.srcObject = stream;
+    // Chờ video thực sự chạy
+    await video.play();
+    overlay.style.display = "none"; // Ẩn màn hình chờ
+    resize();
+    loop();
+  } catch (err) {
+    alert("Lỗi: Không thể mở camera. Hãy cấp quyền!");
+  }
+};
+
+// 3. MEDIA PIPE HANDS
 const hands = new Hands({
   locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
 });
@@ -109,15 +117,24 @@ hands.onResults(res => {
   if (!res.multiHandLandmarks || res.multiHandLandmarks.length === 0) return;
   const lm = res.multiHandLandmarks[0];
   const i = lm[8].y < lm[6].y, m = lm[12].y < lm[10].y, r = lm[16].y < lm[14].y, p = lm[20].y < lm[18].y;
+  
   if (i && m && !r && !p) filter = "bunny";
   else if (i && m && r && p) filter = "glasses";
   else if (i && !m && !r && !p) filter = "mask";
   else if (!i && !m && !r && !p) filter = "none";
 });
 
-// 5. VÒNG LẶP XỬ LÝ
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.onresize = resize;
+
+// 4. VÒNG LẶP XỬ LÝ
 async function loop() {
   frame++;
+  if (video.paused || video.ended) return;
+
   try {
     await hands.send({ image: video });
     if (frame % 2 === 0) {
@@ -127,7 +144,7 @@ async function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Vẽ Video
+  // Vẽ Video chuẩn Mirror
   const scale = Math.max(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
   const w = video.videoWidth * scale, h = video.videoHeight * scale;
   const x = (canvas.width - w) / 2, y = (canvas.height - h) / 2;
@@ -138,64 +155,73 @@ async function loop() {
   ctx.restore();
 
   if (lastFace) {
-    statusTxt.innerText = ""; // Ẩn chữ loading khi đã bắt được mặt
-    const map = (p) => ({ x: (video.videoWidth - p.x) * scale + x, y: p.y * scale + y });
-    const left = map(lastFace.landmarks.getLeftEye()[0]);
-    const right = map(lastFace.landmarks.getRightEye()[3]);
-    const jaw = lastFace.landmarks.getJawOutline().map(map);
+    const map = (p) => ({ 
+      x: (video.videoWidth - p.x) * scale + x, 
+      y: p.y * scale + y 
+    });
+    
+    const landmarks = lastFace.landmarks;
+    const leftEye = map(landmarks.getLeftEye()[0]);
+    const rightEye = map(landmarks.getRightEye()[3]);
+    const jaw = landmarks.getJawOutline().map(map);
+    
     tick += 0.1;
-    if (filter === "bunny") drawBunny(left, right);
-    if (filter === "glasses") drawGlasses(left, right);
-    if (filter === "mask") drawMask(jaw, left, right);
+    if (filter === "bunny") drawBunny(leftEye, rightEye);
+    if (filter === "glasses") drawGlasses(leftEye, rightEye);
+    if (filter === "mask") drawMask(jaw, leftEye, rightEye);
   }
   requestAnimationFrame(loop);
 }
 
-// 6. CHẠY TẤT CẢ
-async function main() {
-  await setupCamera();
-  await loadModels();
-  statusTxt.innerText = "Sẵn sàng! Hãy đưa mặt vào camera";
-  loop();
-}
-
-main();
-
-// FILTER FUNCTIONS (Giữ nguyên logic cũ đã sửa lỗi)
+// 5. CÁC HÀM VẼ FILTER
 function drawBunny(l, r) {
   const midX = (l.x + r.x) / 2, midY = Math.min(l.y, r.y) - 80, b = Math.sin(tick) * 12;
   ctx.fillStyle = "pink"; ctx.strokeStyle = "white"; ctx.lineWidth = 3;
   [midX - 35, midX + 15].forEach(p => {
-    ctx.beginPath(); ctx.roundRect(p, midY + b, 22, 90, 15); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(p, midY + b, 22, 90, 15);
+    ctx.fill(); ctx.stroke();
   });
 }
+
 function drawGlasses(l, r) {
   ctx.strokeStyle = "cyan"; ctx.lineWidth = 5; ctx.shadowBlur = 10; ctx.shadowColor = "cyan";
   const w = 70, h = 45;
-  ctx.strokeRect(l.x - w/2, l.y - h/2, w, h); ctx.strokeRect(r.x - w/2, r.y - h/2, w, h);
+  ctx.strokeRect(l.x - w/2, l.y - h/2, w, h);
+  ctx.strokeRect(r.x - w/2, r.y - h/2, w, h);
   ctx.beginPath(); ctx.moveTo(l.x + w/2, l.y); ctx.lineTo(r.x - w/2, r.y); ctx.stroke();
   ctx.shadowBlur = 0;
 }
+
 function drawMask(jaw, l, r) {
   ctx.save();
-  ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
   ctx.beginPath();
   jaw.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-  const fh = Math.abs(l.x - r.x) * 1.8;
-  ctx.lineTo(jaw[jaw.length-1].x, jaw[jaw.length-1].y - fh);
-  ctx.lineTo(jaw[0].x, jaw[0].y - fh);
-  ctx.closePath(); ctx.fill();
+  const foreheadH = Math.abs(l.x - r.x) * 1.8;
+  ctx.lineTo(jaw[jaw.length-1].x, jaw[jaw.length-1].y - foreheadH);
+  ctx.lineTo(jaw[0].x, jaw[0].y - foreheadH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Đục lỗ mắt
   ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath(); ctx.arc(l.x, l.y, 25, 0, Math.PI*2); ctx.arc(r.x, r.y, 25, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(l.x, l.y, 25, 18, 0, 0, Math.PI*2);
+  ctx.ellipse(r.x, r.y, 25, 18, 0, 0, Math.PI*2);
+  ctx.fill();
   ctx.restore();
 }
 
-document.getElementById("btn").onclick = () => {
+// Chụp ảnh
+document.getElementById("capture-btn").onclick = () => {
   const a = document.createElement("a");
   a.href = canvas.toDataURL("image/png");
   a.download = "filter_photo.png";
   a.click();
 };
+
+loadModels();
 </script>
 </body>
 </html>

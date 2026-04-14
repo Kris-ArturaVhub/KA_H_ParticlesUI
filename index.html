@@ -1,10 +1,216 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>AI Filter Pro</title>
+
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<style>
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  color: white;
+  font-family: sans-serif;
+  text-align: center;
+}
+
+#guide {
+  position: absolute;
+  top: 10px;
+  width: 100%;
+  z-index: 10;
+  font-size: 14px;
+}
+
+#captureBtn {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  background: cyan;
+  color: black;
+  z-index: 10;
+}
+
+video, canvas {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+</style>
+</head>
+
 <body>
-<h1 style="color:red">TEST OK</h1>
+
+<div id="guide">
+👉 Cho phép camera<br>
+✌️ Tai thỏ | ✋ Kính | ☝️ Mặt nạ | ✊ Xoá
+</div>
+
+<button id="captureBtn">📸 Chụp</button>
+
+<video id="video" autoplay muted></video>
+<canvas id="canvas"></canvas>
 
 <script>
-alert("RUNNING");
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const btn = document.getElementById("captureBtn");
+
+let currentFilter = "none";
+let animTick = 0;
+
+// ===== CAMERA =====
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => video.srcObject = stream);
+
+// ===== LOAD MODEL =====
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights')
+]).then(start);
+
+// ===== HAND =====
+const hands = new Hands({
+  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7
+});
+
+hands.onResults(results => {
+  if (!results.multiHandLandmarks) return;
+
+  const lm = results.multiHandLandmarks[0];
+
+  const indexUp = lm[8].y < lm[6].y;
+  const middleUp = lm[12].y < lm[10].y;
+  const ringUp = lm[16].y < lm[14].y;
+  const pinkyUp = lm[20].y < lm[18].y;
+
+  // ✌️
+  if (indexUp && middleUp && !ringUp && !pinkyUp) {
+    currentFilter = "bunny";
+  }
+  // ✋
+  else if (indexUp && middleUp && ringUp && pinkyUp) {
+    currentFilter = "glasses";
+  }
+  // ☝️
+  else if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+    currentFilter = "mask";
+  }
+  // ✊
+  else if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+    currentFilter = "none";
+  }
+});
+
+// ===== START =====
+function start() {
+  video.addEventListener("loadeddata", () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({ image: video });
+        detectFace();
+      },
+      width: 640,
+      height: 480
+    });
+
+    camera.start();
+  });
+}
+
+// ===== FACE =====
+async function detectFace() {
+  const detection = await faceapi.detectSingleFace(video)
+    .withFaceLandmarks();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0);
+
+  if (!detection) return;
+
+  const lm = detection.landmarks;
+
+  const leftEye = lm.getLeftEye()[0];
+  const rightEye = lm.getRightEye()[3];
+  const jaw = lm.getJawOutline();
+
+  animTick += 0.1;
+
+  if (currentFilter === "bunny") drawBunny(leftEye, rightEye);
+  if (currentFilter === "glasses") drawGlasses(leftEye, rightEye);
+  if (currentFilter === "mask") drawMask(jaw, leftEye, rightEye);
+}
+
+// ===== FILTER =====
+function drawBunny(left, right) {
+  const midX = (left.x + right.x) / 2;
+  const baseY = Math.min(left.y, right.y) - 80;
+
+  const bounce = Math.sin(animTick) * 10;
+
+  ctx.fillStyle = "pink";
+
+  ctx.fillRect(midX - 40, baseY + bounce, 20, 80);
+  ctx.fillRect(midX + 20, baseY + bounce, 20, 80);
+}
+
+function drawGlasses(left, right) {
+  const glow = Math.sin(animTick * 2) * 2;
+
+  ctx.strokeStyle = "cyan";
+  ctx.lineWidth = 5 + glow;
+
+  ctx.strokeRect(left.x - 30, left.y - 20, 60, 40);
+  ctx.strokeRect(right.x - 30, right.y - 20, 60, 40);
+
+  ctx.beginPath();
+  ctx.moveTo(left.x + 30, left.y);
+  ctx.lineTo(right.x - 30, right.y);
+  ctx.stroke();
+}
+
+function drawMask(jaw, left, right) {
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+
+  ctx.beginPath();
+  jaw.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.fill();
+
+  // chừa mắt
+  ctx.clearRect(left.x - 35, left.y - 25, 70, 50);
+  ctx.clearRect(right.x - 35, right.y - 25, 70, 50);
+}
+
+// ===== CAPTURE =====
+btn.onclick = () => {
+  const link = document.createElement("a");
+  link.download = "photo.png";
+  link.href = canvas.toDataURL();
+  link.click();
+};
 </script>
 
 </body>

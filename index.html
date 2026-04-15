@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Filter by Kris Artura</title>
+    <title>AR Filter by Kris Artura V2</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -11,13 +11,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 
     <style>
-        /* Thiết lập giao diện toàn màn hình, không có thanh cuộn */
+        /* Thiết lập giao diện toàn màn hình */
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #111;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000;
+            font-family: Arial, sans-serif;
             color: white;
             display: flex;
             justify-content: center;
@@ -26,140 +26,131 @@
             width: 100vw;
         }
 
-        /* Container chứa Camera và Canvas */
         .container {
             position: relative;
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* Video ẩn ở dưới, chỉ dùng để lấy luồng dữ liệu */
+        /* Video ẩn, giảm tải hiển thị */
         .input_video {
             display: none;
             position: absolute;
         }
 
-        /* Canvas (Can vát) hiển thị hình ảnh đã qua xử lý Filter (Phin tờ) */
+        /* Can vát (Canvas) hiển thị Phin tờ (Filter) */
         .output_canvas {
             position: absolute;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Lật gương để camera trông tự nhiên nhất */
-            transform: scaleX(-1);
+            transform: scaleX(-1); /* Lật gương */
             z-index: 1;
         }
 
-        /* Lớp giao diện người dùng nổi lên trên */
         .ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             z-index: 10;
-            pointer-events: none; /* Không cản trở tương tác */
+            pointer-events: none;
         }
 
-        /* Nút bấm ở dưới cùng màn hình */
+        /* Tác giả Kris Artura */
+        .author-notice {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Nút điều khiển */
         .controls {
             position: absolute;
             bottom: 30px;
             width: 100%;
             display: flex;
             justify-content: center;
-            gap: 20px;
-            pointer-events: auto; /* Cho phép bấm nút */
+            gap: 15px;
+            pointer-events: auto;
         }
 
-        /* Thiết kế nút bấm hiện đại */
         .btn {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid white;
             color: white;
-            padding: 15px 25px;
-            border-radius: 30px;
+            padding: 12px 20px;
+            border-radius: 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.4);
-            transform: scale(1.05);
-        }
-
-        .btn.active {
-            background: #ff4757;
-            border-color: #ff6b81;
         }
 
         .btn-capture {
-            background: #2ed573;
-            border-color: #7bed9f;
+            background: #ff4757;
+            border-color: #ff4757;
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
         }
 
-        /* Bảng thông báo tác giả */
-        .author-notice {
+        /* Bảng hướng dẫn */
+        .tutorial-overlay {
             position: absolute;
-            top: 20px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px 20px;
-            border-radius: 20px;
-            border: 1px solid #00d2d3;
-            font-weight: bold;
-            font-size: 18px;
-            color: #00d2d3;
-            text-align: center;
-            pointer-events: auto;
-            animation: fadeInOut 5s forwards;
-            box-shadow: 0 0 15px rgba(0, 210, 211, 0.5);
-        }
-
-        /* Trạng thái Filter đang hoạt động */
-        .status-badge {
-            position: absolute;
-            top: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 165, 0, 0.7);
-            padding: 5px 15px;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.9);
+            padding: 20px;
             border-radius: 15px;
-            font-size: 14px;
-            display: none;
+            border: 2px solid #2ed573;
+            text-align: center;
+            z-index: 50;
+            pointer-events: auto;
+            width: 80%;
+            max-width: 350px;
+            box-shadow: 0 0 20px rgba(46, 213, 115, 0.4);
         }
 
-        /* Animation (A ni mây sần) mờ dần cho thông báo */
-        @keyframes fadeInOut {
-            0% { opacity: 0; top: 0px; }
-            10% { opacity: 1; top: 20px; }
-            80% { opacity: 1; top: 20px; }
-            100% { opacity: 0; top: 0px; visibility: hidden; }
+        .tutorial-overlay h2 {
+            margin-top: 0;
+            color: #2ed573;
         }
 
-        /* Hiệu ứng chớp màn hình khi chụp ảnh (Ri u) */
+        .tutorial-list {
+            text-align: left;
+            line-height: 1.8;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .start-btn {
+            background: #2ed573;
+            color: black;
+            border: none;
+            padding: 10px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        /* Flash khi chụp ảnh */
         .flash {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: white;
-            z-index: 20;
+            z-index: 100;
             opacity: 0;
             pointer-events: none;
         }
 
         .flash.active {
-            animation: flashAnim 0.5s ease-out;
+            animation: flashAnim 0.4s ease-out;
         }
 
         @keyframes flashAnim {
@@ -177,387 +168,360 @@
         <div class="flash" id="flashScreen"></div>
 
         <div class="ui-layer">
-            <div class="author-notice">
-                System Initialized<br>
-                Author: Kris Artura
-            </div>
+            <div class="author-notice">By Kris Artura</div>
             
-            <div class="status-badge" id="statusBadge">Chế độ: Mặc định</div>
-
             <div class="controls">
-                <button class="btn" id="lockBtn" onclick="toggleLock()">Khoá Filter: TẮT</button>
-                <button class="btn btn-capture" onclick="takePhoto()">📷 Chụp Ảnh</button>
+                <button class="btn" id="lockBtn" onclick="toggleLock()">🔒 Mở khoá</button>
+                <button class="btn btn-capture" onclick="takePhoto()">📸 Chụp Ảnh</button>
             </div>
+        </div>
+
+        <div class="tutorial-overlay" id="tutorial">
+            <h2>HƯỚNG DẪN</h2>
+            <div class="tutorial-list">
+                ✌️ <b>Dơ 2 ngón:</b> Tai thỏ vật lý<br>
+                ☝️ <b>Chỉ ngón trỏ:</b> Mặt nạ Cyber<br>
+                🤘 <b>Dơ sừng:</b> Vẽ dạ quang bằng mũi<br>
+                ✋ <b>Xoè tay:</b> Xoá toàn bộ
+            </div>
+            <button class="start-btn" onclick="closeTutorial()">Bắt đầu ngay</button>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // KHỞI TẠO BIẾN VÀ LẤY CÁC PHẦN TỬ DOM
-        // ==========================================
+        // Lấy các phần tử từ DOM
         const videoElement = document.getElementsByClassName('input_video')[0];
         const canvasElement = document.getElementsByClassName('output_canvas')[0];
         const canvasCtx = canvasElement.getContext('2d');
-        const lockBtn = document.getElementById('lockBtn');
-        const statusBadge = document.getElementById('statusBadge');
         const flashScreen = document.getElementById('flashScreen');
+        const lockBtn = document.getElementById('lockBtn');
+        const tutorial = document.getElementById('tutorial');
 
-        // Các biến trạng thái quản lý Filter
-        let currentFilter = 'NONE'; // Các trạng thái: NONE, BUNNY, MASK
+        // Các biến trạng thái
+        let currentFilter = 'NONE';
         let isFilterLocked = false;
         
-        // Biến lưu thời gian để làm Animation (A ni mây sần)
-        let timeOffset = 0;
+        // Quản lý nét vẽ mũi
+        let noseTrail = [];
+        const MAX_TRAIL_LENGTH = 40; // Giới hạn độ dài để không lác
 
-        // ==========================================
-        // CÁC HÀM TOÁN HỌC VÀ TIỆN ÍCH (VECTOR / VẬT LÝ)
-        // ==========================================
-        
-        // Tính khoảng cách giữa 2 điểm 2D
-        function calculateDistance(p1, p2) {
-            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        // Quản lý vật lý tai thỏ
+        let prevHeadX = 0;
+        let earInertia = 0; // Quán tính
+
+        function closeTutorial() {
+            tutorial.style.display = 'none';
         }
 
-        // Tính góc nghiêng giữa 2 điểm (hữu ích cho việc nghiêng đầu)
-        function calculateAngle(p1, p2) {
-            return Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        }
-
-        // Lấy điểm chính giữa của 2 điểm
-        function getMidPoint(p1, p2) {
-            return {
-                x: (p1.x + p2.x) / 2,
-                y: (p1.y + p2.y) / 2
-            };
+        function toggleLock() {
+            isFilterLocked = !isFilterLocked;
+            lockBtn.innerText = isFilterLocked ? '🔒 Đã Khoá' : '🔒 Mở khoá';
+            lockBtn.style.borderColor = isFilterLocked ? '#ff4757' : 'white';
         }
 
         // ==========================================
-        // LOGIC NHẬN DIỆN CỬ CHỈ BÀN TAY
+        // TOÁN HỌC VÀ NHẬN DIỆN CỬ CHỈ MỚI (CHỐNG LÁC)
         // ==========================================
         
-        // Kiểm tra xem một ngón tay có đang duỗi thẳng không
-        // Dựa vào việc đầu ngón tay (tip) có nằm cao hơn khớp ngón (pip) không
-        function isFingerExtended(landmarks, tipIndex, pipIndex) {
-            // Y trên màn hình: 0 ở trên, 1 ở dưới. 
-            // Nếu Y của tip < Y của pip nghĩa là ngón tay đang chĩa lên trên.
-            return landmarks[tipIndex].y < landmarks[pipIndex].y;
+        // Hàm tính khoảng cách 2 điểm
+        function dist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
         }
 
-        // Phân tích toàn bộ bàn tay để suy ra hành động
-        function detectHandGesture(handLandmarks) {
-            if (!handLandmarks) return 'NONE';
+        // Nhận diện siêu chuẩn dựa trên khoảng cách tới cổ tay
+        // Tránh lỗi khi nghiêng tay, lật tay
+        function detectHandGesture(landmarks) {
+            if (!landmarks) return 'NONE';
 
-            // Chỉ mục các ngón tay trong MediaPipe Hands
-            // Ngón cái: 4, Ngón trỏ: 8, Ngón giữa: 12, Ngón áp út: 16, Ngón út: 20
-            const isThumbUp = isFingerExtended(handLandmarks, 4, 3); // Ngón cái hơi đặc biệt
-            const isIndexUp = isFingerExtended(handLandmarks, 8, 6);
-            const isMiddleUp = isFingerExtended(handLandmarks, 12, 10);
-            const isRingUp = isFingerExtended(handLandmarks, 16, 14);
-            const isPinkyUp = isFingerExtended(handLandmarks, 20, 18);
+            // Cổ tay là điểm số 0
+            const wrist = landmarks[0];
+            
+            // Tính khoảng cách ngón tay so với cổ tay
+            const indexExtended = dist(landmarks[8], wrist) > dist(landmarks[5], wrist) * 1.2;
+            const middleExtended = dist(landmarks[12], wrist) > dist(landmarks[9], wrist) * 1.2;
+            const ringExtended = dist(landmarks[16], wrist) > dist(landmarks[13], wrist) * 1.2;
+            const pinkyExtended = dist(landmarks[20], wrist) > dist(landmarks[17], wrist) * 1.2;
 
-            // Đếm số ngón tay đang duỗi (không tính ngón cái cho chính xác với các cử chỉ cơ bản)
-            let fingersUpCount = 0;
-            if (isIndexUp) fingersUpCount++;
-            if (isMiddleUp) fingersUpCount++;
-            if (isRingUp) fingersUpCount++;
-            if (isPinkyUp) fingersUpCount++;
-
-            // Logic 1: Dơ ✋ (Tất cả các ngón đều mở) -> Xóa hết
-            if (fingersUpCount >= 4) {
+            // ✋ Xoè tay (4 ngón dơ lên) -> DỪNG/XOÁ
+            if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
                 return 'STOP';
             }
 
-            // Logic 2: Dơ ✌️ (Ngón trỏ và ngón giữa mở, các ngón khác gập) -> Tai thỏ
-            if (isIndexUp && isMiddleUp && !isRingUp && !isPinkyUp) {
+            // ✌️ Dơ 2 ngón (Trỏ & Giữa) -> TAI THỎ
+            if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
                 return 'PEACE';
             }
 
-            // Logic 3: Dơ ☝️ (Chỉ có ngón trỏ mở) -> Mặt nạ 3D
-            if (isIndexUp && !isMiddleUp && !isRingUp && !isPinkyUp) {
+            // ☝️ Dơ ngón trỏ -> MẶT NẠ
+            if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
                 return 'POINT';
+            }
+
+            // 🤘 Dơ sừng (Trỏ & Út) -> VẼ BẰNG MŨI
+            if (indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
+                return 'ROCK';
             }
 
             return 'NONE';
         }
 
         // ==========================================
-        // CÁC HÀM VẼ ĐỒ HỌA (FILTER)
+        // CÁC HÀM VẼ ĐỒ HỌA
         // ==========================================
 
-        // Hàm vẽ Tai Thỏ (Có Animation lắc lư nhẹ)
-        function drawBunnyEars(ctx, faceLandmarks, width, height) {
-            // Lấy các điểm neo trên khuôn mặt
+        // Vẽ đường nét bằng mũi (Neon dạ quang)
+        function drawNoseTrail(ctx, width, height) {
+            if (noseTrail.length < 2) return;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(noseTrail[0].x, noseTrail[0].y);
+
+            for (let i = 1; i < noseTrail.length; i++) {
+                // Tạo đường cong mượt mà
+                const xc = (noseTrail[i].x + noseTrail[i - 1].x) / 2;
+                const yc = (noseTrail[i].y + noseTrail[i - 1].y) / 2;
+                ctx.quadraticCurveTo(noseTrail[i - 1].x, noseTrail[i - 1].y, xc, yc);
+            }
+
+            // Hiệu ứng phát sáng
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = '#00ffcc';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00ffcc';
+            ctx.stroke();
+
+            // Vẽ viền lõi trắng
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.shadowBlur = 0;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Vẽ tai thỏ với A ni mây sần (Animation) vật lý
+        function drawAnimatedBunnyEars(ctx, faceLandmarks, width, height) {
             const topOfHead = faceLandmarks[10];
             const leftFace = faceLandmarks[234];
             const rightFace = faceLandmarks[454];
 
-            // Tính toán tọa độ thực tế trên Pixel
             const headX = topOfHead.x * width;
             const headY = topOfHead.y * height;
             
-            // Tính góc nghiêng của đầu
-            const angle = calculateAngle(leftFace, rightFace);
-            
-            // Kích thước tai phụ thuộc vào độ rộng khuôn mặt
-            const faceWidth = calculateDistance(leftFace, rightFace) * width;
-            const earWidth = faceWidth * 0.3;
-            const earHeight = faceWidth * 0.8;
+            // Tính toán tốc độ chuyển động của đầu
+            const headSpeed = headX - prevHeadX;
+            prevHeadX = headX;
 
-            // Tạo Animation mượt mà bằng sóng Sin
-            timeOffset += 0.05;
-            const wobble = Math.sin(timeOffset) * 0.1;
+            // Quán tính đàn hồi (Lắc theo chiều ngược lại của đầu)
+            // Lực kéo về vị trí 0
+            earInertia += (headSpeed * 0.02 - earInertia) * 0.15;
+
+            const faceWidth = dist(leftFace, rightFace) * width;
+            const earWidth = faceWidth * 0.25;
+            const earHeight = faceWidth * 0.8;
 
             ctx.save();
             ctx.translate(headX, headY);
             
-            // Xoay theo đầu và cộng thêm độ lắc lư
-            ctx.rotate(angle + wobble);
+            // Xoay thêm quán tính vật lý
+            const baseAngle = Math.atan2(rightFace.y - leftFace.y, rightFace.x - leftFace.x);
+            ctx.rotate(baseAngle + earInertia);
 
-            // Vẽ tai trái
-            ctx.beginPath();
-            ctx.ellipse(-earWidth, -earHeight * 0.6, earWidth/2, earHeight/2, -0.3, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ffffff'; // Màu trắng lông thỏ
-            ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#cccccc';
-            ctx.stroke();
-
-            // Phần lõi hồng tai trái
-            ctx.beginPath();
-            ctx.ellipse(-earWidth, -earHeight * 0.5, earWidth/4, earHeight/3, -0.3, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ffb8b8';
-            ctx.fill();
+            // Vẽ tai trái (Cụp ra một chút)
+            ctx.save();
+            ctx.rotate(-0.3);
+            drawSingleEar(ctx, -earWidth * 1.5, -earHeight * 0.6, earWidth, earHeight);
+            ctx.restore();
 
             // Vẽ tai phải
-            ctx.beginPath();
-            ctx.ellipse(earWidth, -earHeight * 0.6, earWidth/2, earHeight/2, 0.3, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ffffff';
-            ctx.fill();
-            ctx.stroke();
-
-            // Phần lõi hồng tai phải
-            ctx.beginPath();
-            ctx.ellipse(earWidth, -earHeight * 0.5, earWidth/4, earHeight/3, 0.3, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ffb8b8';
-            ctx.fill();
+            ctx.save();
+            ctx.rotate(0.3);
+            drawSingleEar(ctx, earWidth * 1.5, -earHeight * 0.6, earWidth, earHeight);
+            ctx.restore();
 
             ctx.restore();
         }
 
-        // Hàm vẽ Mặt Nạ 3D bao phủ mặt và khoét lỗ mắt
-        function drawFaceMask(ctx, faceLandmarks, width, height) {
-            // Mảng các điểm bao quanh khuôn mặt (Face Oval)
-            const silhouetteIndices = [
-                10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
-                397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
-                172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
-            ];
+        // Hàm hỗ trợ vẽ một bên tai
+        function drawSingleEar(ctx, x, y, w, h) {
+            // Lông thỏ trắng
+            ctx.beginPath();
+            ctx.ellipse(x, y, w/2, h/2, 0, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ddd';
+            ctx.stroke();
 
-            // Mảng điểm mắt trái
-            const leftEyeIndices = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
-            // Mảng điểm mắt phải
-            const rightEyeIndices = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
+            // Lõi tai hồng
+            ctx.beginPath();
+            ctx.ellipse(x, y + h*0.1, w/3, h/2.5, 0, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ff99cc';
+            ctx.fill();
+        }
+
+        // Vẽ Mặt Nạ đơn giản hơn bản cũ để tránh lác
+        function drawFastMask(ctx, faceLandmarks, width, height) {
+            const nose = faceLandmarks[1];
+            const leftJaw = faceLandmarks[132];
+            const rightJaw = faceLandmarks[361];
+            const chin = faceLandmarks[152];
 
             ctx.save();
-
-            // 1. Vẽ hình dáng mặt nạ (Path bao quanh mặt)
             ctx.beginPath();
-            for (let i = 0; i < silhouetteIndices.length; i++) {
-                const pt = faceLandmarks[silhouetteIndices[i]];
-                if (i === 0) ctx.moveTo(pt.x * width, pt.y * height);
-                else ctx.lineTo(pt.x * width, pt.y * height);
-            }
+            ctx.moveTo(leftJaw.x * width, leftJaw.y * height);
+            ctx.lineTo(chin.x * width, chin.y * height);
+            ctx.lineTo(rightJaw.x * width, rightJaw.y * height);
+            ctx.lineTo(nose.x * width, (nose.y - 0.05) * height);
             ctx.closePath();
 
-            // Tô màu mặt nạ với độ dốc (Gradient) cho cảm giác 3D
-            const grad = ctx.createLinearGradient(0, 0, width, height);
-            grad.addColorStop(0, "rgba(20, 20, 20, 0.85)");
-            grad.addColorStop(1, "rgba(50, 50, 80, 0.85)");
+            // Gradient màu ngầu
+            const grad = ctx.createLinearGradient(0, chin.y*height, 0, nose.y*height);
+            grad.addColorStop(0, "rgba(10, 10, 10, 0.9)");
+            grad.addColorStop(1, "rgba(50, 0, 100, 0.6)");
             ctx.fillStyle = grad;
             ctx.fill();
 
-            // Viền mặt nạ phát sáng
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "#00ffff";
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#00ffff";
+            // Lưới điện Cyber
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(nose.x * width, nose.y * height);
+            ctx.lineTo(chin.x * width, chin.y * height);
             ctx.stroke();
-
-            // 2. KHOÉT LỖ MẮT
-            // Sử dụng globalCompositeOperation để xóa đi phần đã vẽ
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.shadowBlur = 0; // Tắt viền sáng khi cắt lỗ
-
-            // Cắt lỗ mắt trái
-            ctx.beginPath();
-            for (let i = 0; i < leftEyeIndices.length; i++) {
-                const pt = faceLandmarks[leftEyeIndices[i]];
-                if (i === 0) ctx.moveTo(pt.x * width, pt.y * height);
-                else ctx.lineTo(pt.x * width, pt.y * height);
-            }
-            ctx.closePath();
-            ctx.fill(); // Hành động fill lúc này sẽ "xóa" màu trên Canvas
-
-            // Cắt lỗ mắt phải
-            ctx.beginPath();
-            for (let i = 0; i < rightEyeIndices.length; i++) {
-                const pt = faceLandmarks[rightEyeIndices[i]];
-                if (i === 0) ctx.moveTo(pt.x * width, pt.y * height);
-                else ctx.lineTo(pt.x * width, pt.y * height);
-            }
-            ctx.closePath();
-            ctx.fill();
 
             ctx.restore();
         }
 
         // ==========================================
-        // HÀM XỬ LÝ SỰ KIỆN TỪ CAMERA & MEDIAPIPE
+        // XỬ LÝ DỮ LIỆU TỪ MEDIAPIPE CHÍNH
         // ==========================================
         function onResults(results) {
-            // Đảm bảo kích thước Canvas khớp với khung hình Video
-            canvasElement.width = videoElement.videoWidth;
-            canvasElement.height = videoElement.videoHeight;
             const w = canvasElement.width;
             const h = canvasElement.height;
+            const ctx = canvasCtx;
 
-            ctx = canvasCtx;
             ctx.save();
             ctx.clearRect(0, 0, w, h);
 
-            // Vẽ hình ảnh nguyên bản từ Camera lên Canvas trước tiên
+            // Vẽ hình từ Ca me ra
             ctx.drawImage(results.image, 0, 0, w, h);
 
-            // Nếu hệ thống phát hiện có tay (Trái hoặc Phải)
+            // Dò tìm cử chỉ tay
             let activeGesture = 'NONE';
+            let handDetected = false;
+
             if (results.leftHandLandmarks) {
                 activeGesture = detectHandGesture(results.leftHandLandmarks);
+                handDetected = true;
             } else if (results.rightHandLandmarks) {
                 activeGesture = detectHandGesture(results.rightHandLandmarks);
+                handDetected = true;
             }
 
-            // Cập nhật trạng thái Filter nếu như chức năng KHOÁ đang TẮT
+            // Xử lý logic Phin tờ (Filter) nếu không khoá
             if (!isFilterLocked) {
-                if (activeGesture === 'PEACE') {
-                    currentFilter = 'BUNNY';
-                } else if (activeGesture === 'POINT') {
-                    currentFilter = 'MASK';
-                } else if (activeGesture === 'STOP') {
-                    currentFilter = 'NONE';
+                if (activeGesture === 'PEACE') currentFilter = 'BUNNY';
+                else if (activeGesture === 'POINT') currentFilter = 'MASK';
+                else if (activeGesture === 'ROCK') currentFilter = 'DRAW';
+                else if (activeGesture === 'STOP') currentFilter = 'NONE';
+            }
+
+            // Xử lý Xoá đường nét vẽ nếu thả tay hoặc dơ STOP
+            if (currentFilter !== 'DRAW' || activeGesture === 'STOP' || !handDetected) {
+                // Giảm từ từ độ dài mảng để tia sáng ngắn dần (hiệu ứng đẹp)
+                if (noseTrail.length > 0) {
+                    noseTrail.shift();
+                    noseTrail.shift(); // Xoá nhanh gấp đôi
                 }
             }
 
-            // Cập nhật thẻ trạng thái trên màn hình
-            statusBadge.style.display = 'block';
-            if (currentFilter === 'BUNNY') {
-                statusBadge.innerText = 'Chế độ: Tai Thỏ (✌️)';
-                statusBadge.style.background = 'rgba(255, 105, 180, 0.8)';
-            } else if (currentFilter === 'MASK') {
-                statusBadge.innerText = 'Chế độ: Mặt Nạ Cyber (☝️)';
-                statusBadge.style.background = 'rgba(0, 206, 209, 0.8)';
-            } else {
-                statusBadge.innerText = 'Chế độ: Mặc Định (✋ để xoá)';
-                statusBadge.style.background = 'rgba(100, 100, 100, 0.8)';
-            }
-
-            // Nếu hệ thống tìm thấy khuôn mặt, tiến hành vẽ Filter tương ứng
+            // Vẽ theo chế độ
             if (results.faceLandmarks) {
-                if (currentFilter === 'BUNNY') {
-                    drawBunnyEars(ctx, results.faceLandmarks, w, h);
-                } else if (currentFilter === 'MASK') {
-                    drawFaceMask(ctx, results.faceLandmarks, w, h);
+                if (currentFilter === 'DRAW' && handDetected && activeGesture === 'ROCK') {
+                    // Thêm toạ độ mũi vào mảng vẽ
+                    const nose = results.faceLandmarks[1];
+                    noseTrail.push({x: nose.x * w, y: nose.y * h});
+                    
+                    // Xoá điểm cũ nếu dài quá giới hạn
+                    if (noseTrail.length > MAX_TRAIL_LENGTH) {
+                        noseTrail.shift();
+                    }
                 }
-                // Lưu ý: Tự động dò khuôn mặt (ẩn), nên ta KHÔNG dùng hàm 
-                // drawConnectors() để vẽ lưới FaceMesh mặc định.
+
+                // Vẽ các hiệu ứng lên Can vát
+                if (currentFilter === 'BUNNY') {
+                    drawAnimatedBunnyEars(ctx, results.faceLandmarks, w, h);
+                } else if (currentFilter === 'MASK') {
+                    drawFastMask(ctx, results.faceLandmarks, w, h);
+                }
+
+                // Luôn vẽ tia nét mũi nếu mảng còn dữ liệu
+                if (noseTrail.length > 0) {
+                    drawNoseTrail(ctx, w, h);
+                }
             }
 
             ctx.restore();
         }
 
         // ==========================================
-        // CÁC HÀM XỬ LÝ GIAO DIỆN NÚT BẤM
+        // CHỤP ẢNH VÀ KHỞI ĐỘNG HỆ THỐNG
         // ==========================================
 
-        // Hàm bật/tắt chức năng khoá Filter
-        function toggleLock() {
-            isFilterLocked = !isFilterLocked;
-            if (isFilterLocked) {
-                lockBtn.innerText = 'Khoá Filter: BẬT';
-                lockBtn.classList.add('active');
-            } else {
-                lockBtn.innerText = 'Khoá Filter: TẮT';
-                lockBtn.classList.remove('active');
-            }
-        }
-
-        // Hàm chụp ảnh thực (Ri u) chất lượng cao
         function takePhoto() {
-            // Kích hoạt Animation chớp trắng
+            // Nháy Flash
             flashScreen.classList.remove('active');
-            void flashScreen.offsetWidth; // Mẹo nhỏ để kích hoạt lại CSS Animation
+            void flashScreen.offsetWidth; 
             flashScreen.classList.add('active');
 
-            // Tạo link tải ảnh xuống thiết bị
-            const link = document.createElement('a');
-            link.download = 'KrisArtura_AR_Filter.png';
-            
-            // Do Canvas bị lật ngược bằng CSS, nếu muốn ảnh tải về không bị lật
-            // ta cần lật lại nó trước khi xuất file (hoặc xuất nguyên bản)
-            // Ở đây xuất ảnh y hệt như những gì người dùng đang nhìn thấy
-            
-            // Tạo một Canvas tạm thời để xử lý lật ảnh
+            // Tạo Can vát tạm để lật ảnh (Do CSS đang lật gương)
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvasElement.width;
             tempCanvas.height = canvasElement.height;
             const tempCtx = tempCanvas.getContext('2d');
             
-            // Lật ngược hệ trục tọa độ ngang
             tempCtx.translate(tempCanvas.width, 0);
             tempCtx.scale(-1, 1);
-            
-            // Vẽ Canvas chính lên Canvas tạm
             tempCtx.drawImage(canvasElement, 0, 0);
 
-            // Chuyển thành file PNG và ép trình duyệt tải xuống
+            // Lưu file
+            const link = document.createElement('a');
+            link.download = 'KrisArtura_AR.png';
             link.href = tempCanvas.toDataURL('image/png');
             link.click();
         }
 
-        // ==========================================
-        // CẤU HÌNH VÀ KHỞI ĐỘNG HỆ THỐNG MEDIAPIPE
-        // ==========================================
-        
-        // Cấu hình Holistic: Dò tìm đồng thời Mặt, Tay và Cơ thể
+        // Khởi tạo Holistic (Cấu hình chống lác)
         const holistic = new Holistic({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
         }});
 
         holistic.setOptions({
-            modelComplexity: 1,       // Giữ ở mức 1 để tránh giật lag
-            smoothLandmarks: true,    // Làm mượt chuyển động, chống rung
+            modelComplexity: 0,       // GIẢM XUỐNG 0 ĐỂ HẾT LÁC
+            smoothLandmarks: true,
             enableSegmentation: false,
-            smoothSegmentation: false,
-            refineFaceLandmarks: true,// Tăng độ chính xác cho môi và mắt (để khoét lỗ)
+            refineFaceLandmarks: false, // Bỏ refine để tối ưu hiệu suất
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
 
-        // Đăng ký sự kiện: mỗi khi có khung hình xử lý xong thì gọi onResults
         holistic.onResults(onResults);
 
-        // Kích hoạt Camera mặt trước (facingMode: 'user')
+        // Chạy Camera độ phân giải tiêu chuẩn (Chống lác cho mobile)
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await holistic.send({image: videoElement});
             },
-            width: 1280,
-            height: 720,
+            width: 640,  // Nâng hiệu suất rõ rệt
+            height: 480,
             facingMode: 'user'
         });
 
-        // Bắt đầu chạy Camera
         camera.start();
-
     </script>
 </body>
 </html>

@@ -12,8 +12,14 @@ video, canvas {
   object-fit: cover;
   transform: scaleX(-1); /* mirror đồng bộ */
 }
+video {
+  z-index: 1;
+}
 
 canvas {
+  z-index: 2; /* 🔥 QUAN TRỌNG: phải cao hơn video */
+  
+
   pointer-events: none;
 }
 </style>

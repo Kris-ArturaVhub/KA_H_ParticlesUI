@@ -1,209 +1,33 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>AI Filter Stable v2</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-
 <style>
-body { margin:0; overflow:hidden; background:black; }
-
-#guide {
-  position: fixed;
-  top:10px;
-  width:100%;
-  text-align:center;
-  color:white;
-  z-index:10;
-  font-size:14px;
+body { margin:0; overflow:hidden; }
+video {
+  position:fixed;
+  width:100vw;
+  height:100vh;
+  object-fit:cover;
+  transform: scaleX(-1); /* mirror */
 }
-
-#btn {
-  position: fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  padding:12px 25px;
-  background:cyan;
-  border-radius:20px;
-  border:none;
-}
-
-video { display:none; }
-canvas { position:fixed; top:0; left:0; }
 </style>
 </head>
 
 <body>
 
-<div id="guide">
-✌️ Tai thỏ | ✋ Kính | ☝️ Mask | ✊ Xoá
-</div>
-
-<button id="btn">📸</button>
-
-<video id="video" autoplay muted playsinline></video>
-<canvas id="canvas"></canvas>
+<video id="cam" autoplay muted playsinline></video>
 
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const video = document.getElementById("cam");
 
-let filter = "none";
-let tick = 0;
-
-// ===== FULL SCREEN =====
-function resize(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.onresize = resize;
-resize();
-
-// ===== CAMERA =====
 navigator.mediaDevices.getUserMedia({
-  video: { facingMode:"user" }
-}).then(s => video.srcObject = s);
-
-// ===== FACEMESH =====
-const faceMesh = new FaceMesh({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+  video: { facingMode: "user" }
+}).then(stream => {
+  video.srcObject = stream;
+}).catch(() => {
+  alert("Không mở được camera");
 });
-
-faceMesh.setOptions({
-  maxNumFaces:1,
-  refineLandmarks:true,
-  minDetectionConfidence:0.5,
-  minTrackingConfidence:0.5
-});
-
-// ===== HAND =====
-const hands = new Hands({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-});
-
-hands.setOptions({
-  maxNumHands:1,
-  minDetectionConfidence:0.6,
-  minTrackingConfidence:0.6
-});
-
-hands.onResults(res=>{
-  if (!res.multiHandLandmarks) {
-    filter = "none";
-    return;
-  }
-
-  const lm = res.multiHandLandmarks[0];
-
-  const i = lm[8].y < lm[6].y;
-  const m = lm[12].y < lm[10].y;
-  const r = lm[16].y < lm[14].y;
-  const p = lm[20].y < lm[18].y;
-
-  if (i && m && !r && !p) filter = "bunny";
-  else if (i && m && r && p) filter = "glasses";
-  else if (i && !m && !r && !p) filter = "mask";
-  else if (!i && !m && !r && !p) filter = "none";
-});
-
-// ===== LOOP =====
-let faceData = null;
-
-faceMesh.onResults(res=>{
-  if (res.multiFaceLandmarks.length > 0) {
-    faceData = res.multiFaceLandmarks[0];
-  }
-});
-
-async function loop(){
-  await faceMesh.send({image:video});
-  await hands.send({image:video});
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // mirror
-  ctx.save();
-  ctx.scale(-1,1);
-  ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  if (faceData){
-    const left = faceData[33];
-    const right = faceData[263];
-
-    const l = map(left);
-    const r = map(right);
-
-    tick += 0.1;
-
-    if (filter==="bunny") drawBunny(l,r);
-    if (filter==="glasses") drawGlasses(l,r);
-    if (filter==="mask") drawMask(faceData);
-  }
-
-  requestAnimationFrame(loop);
-}
-
-// ===== MAP =====
-function map(p){
-  return {
-    x: canvas.width - p.x * canvas.width,
-    y: p.y * canvas.height
-  };
-}
-
-// ===== FILTER =====
-function drawBunny(l,r){
-  const mid=(l.x+r.x)/2;
-  const y=Math.min(l.y,r.y)-80;
-  const b=Math.sin(tick)*10;
-
-  ctx.fillStyle="pink";
-  ctx.fillRect(mid-40,y+b,20,80);
-  ctx.fillRect(mid+20,y+b,20,80);
-}
-
-function drawGlasses(l,r){
-  ctx.strokeStyle="cyan";
-  ctx.lineWidth=5;
-
-  ctx.strokeRect(l.x-30,l.y-20,60,40);
-  ctx.strokeRect(r.x-30,r.y-20,60,40);
-
-  ctx.beginPath();
-  ctx.moveTo(l.x+30,l.y);
-  ctx.lineTo(r.x-30,r.y);
-  ctx.stroke();
-}
-
-function drawMask(face){
-  ctx.fillStyle="rgba(0,0,0,0.8)";
-  ctx.beginPath();
-
-  face.forEach((p,i)=>{
-    const pt = map(p);
-    if(i===0) ctx.moveTo(pt.x,pt.y);
-    else ctx.lineTo(pt.x,pt.y);
-  });
-
-  ctx.closePath();
-  ctx.fill();
-}
-
-// ===== CAPTURE =====
-document.getElementById("btn").onclick = ()=>{
-  const a=document.createElement("a");
-  a.href=canvas.toDataURL();
-  a.download="photo.png";
-  a.click();
-};
-
-// START
-video.addEventListener("loadeddata", loop);
 </script>
 
 </body>

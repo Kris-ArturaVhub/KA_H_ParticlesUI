@@ -39,17 +39,33 @@ navigator.mediaDevices.getUserMedia({
   video: { facingMode: "user" }
 }).then(s => video.srcObject = s);
 
-// set kích thước thật
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// resize đúng
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.onresize = resize;
+resize();
 
-// 🔥 VẼ NGAY LẬP TỨC (KHÔNG LOOP)
-ctx.fillStyle = "red";
-ctx.beginPath();
-ctx.arc(canvas.width/2, canvas.height/2, 80, 0, Math.PI*2);
-ctx.fill();
+// 🔥 LOOP CHUẨN (không lỗi)
+function loop() {
+  // clear
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-</script>
+  // vẽ chấm đỏ
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2, 80, 0, Math.PI*2);
+  ctx.fill();
+
+  requestAnimationFrame(loop);
+}
+
+// chạy sau khi camera sẵn sàng
+video.addEventListener("loadeddata", () => {
+  loop();
+});
+                       </script>
 
 </body>
 </html>
